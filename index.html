@@ -355,26 +355,37 @@ async function init() {
     }
   } catch(e) {}
 
-  // 2) 没有本地缓存 → 从 GitHub 拉取 data.json
+  // 2) 没有本地缓存 → 从 GitHub / CDN 拉取 data.json（带重试）
   if (!hasSaved) {
-    try {
-      var url = DATA_URL;
-      if (DATA_CACHE_BUSTER) url += '?v=' + DATA_CACHE_BUSTER;
-      var resp = await fetch(url, {cache: 'no-store'});
-      if (resp.ok) {
-        var remoteData = await resp.json();
-        if (remoteData.length > 0) {
-          allData = remoteData;
-          sourceLabel = 'GitHub';
-          // 缓存到 localStorage 加速下次加载
-          try { localStorage.setItem('dashboard_data', JSON.stringify(allData)); localStorage.setItem('dashboard_time', new Date().toLocaleString('zh-CN')); } catch(e) {}
+    var fetchUrls = [
+      DATA_URL,                                                   // 主源：GitHub raw
+      'https://cdn.jsdelivr.net/gh/zhongshanms/zhifa-dashboard@main/data.json'  // 备用：jsDelivr CDN
+    ];
+    var fetchOk = false;
+    var maxRetries = 2;  // 每个 URL 最多试 3 次（1次初始 + 2次重试）
+
+    for (var u = 0; u < fetchUrls.length && !fetchOk; u++) {
+      var fetchUrl = fetchUrls[u];
+      for (var attempt = 0; attempt <= maxRetries && !fetchOk; attempt++) {
+        try {
+          if (attempt > 0) await new Promise(function(r) { setTimeout(r, 1500); }); // 重试前等 1.5s
+          var resp = await fetch(fetchUrl, {cache: 'no-store'});
+          if (resp.ok) {
+            var remoteData = await resp.json();
+            if (remoteData && remoteData.length > 0) {
+              allData = remoteData;
+              sourceLabel = (u === 0 ? 'GitHub' : 'CDN');
+              fetchOk = true;
+              // 缓存到 localStorage 加速下次加载
+              try { localStorage.setItem('dashboard_data', JSON.stringify(allData)); localStorage.setItem('dashboard_time', new Date().toLocaleString('zh-CN')); } catch(e) {}
+            }
+          }
+        } catch(e) {
+          console.warn('Fetch attempt ' + (attempt+1) + ' from ' + fetchUrl + ': ' + e.message);
         }
-      } else {
-        console.warn('GitHub data fetch failed, status:', resp.status);
       }
-    } catch(e) {
-      console.warn('GitHub data fetch error:', e.message);
     }
+    if (!fetchOk) console.warn('All fetch sources failed - displaying empty state');
   }
 
   // 3) 如果都没有数据，显示空状态
