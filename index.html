@@ -476,10 +476,10 @@ function getBaseDataForCascade() {
 }
 
 function onFactoryChange() {
-  document.getElementById('filterDate').value = '';
   document.getElementById('filterPlan').value = '';
   document.getElementById('filterMsku').value = '';
   document.getElementById('filterShopSku').value = '';
+  buildFilterOptions();  // 根据新工厂重建日期选项
   buildCascadeOptions();
   applyFilters();
 }
@@ -488,6 +488,7 @@ function onDateChange() {
   document.getElementById('filterPlan').value = '';
   document.getElementById('filterMsku').value = '';
   document.getElementById('filterShopSku').value = '';
+  buildFilterOptions();  // 日期变化时也同步工厂-日期联动
   buildCascadeOptions();
   applyFilters();
 }
@@ -515,20 +516,31 @@ function buildCascadeOptions() {
 }
 
 function buildFilterOptions() {
-  var factories = {}; allData.forEach(function(d) { factories[d['工厂代码']] = true; });
-  var dates = {}; allData.forEach(function(d) { dates[d['发货时间']] = true; });
+  var selectedFactory = document.getElementById('filterFactory').value;
 
+  // 工厂选项：始终从全量数据构建
+  var factories = {}; allData.forEach(function(d) { factories[d['工厂代码']] = true; });
   var sf = document.getElementById('filterFactory');
+  var currFactory = sf.value;
   sf.innerHTML = '<option value="">全部</option>';
   Object.keys(factories).sort().forEach(function(f) {
     sf.appendChild(createOption(f, f));
   });
+  sf.value = currFactory;  // 恢复选中
+
+  // 日期选项：只显示当前工厂下实际存在的日期
+  var baseData = allData;
+  if (selectedFactory) baseData = baseData.filter(function(d) { return d['工厂代码'] === selectedFactory; });
+  var dates = {}; baseData.forEach(function(d) { dates[d['发货时间']] = true; });
 
   var sd = document.getElementById('filterDate');
+  var currDate = sd.value;
   sd.innerHTML = '<option value="">全部</option>';
   Object.keys(dates).sort().forEach(function(d) {
     sd.appendChild(createOption(d, d));
   });
+  // 恢复之前选中（如果该日期在新选项中不存在则自动重置为"全部"）
+  sd.value = currDate;
 }
 
 function createOption(value, text) {
