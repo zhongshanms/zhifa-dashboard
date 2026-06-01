@@ -172,58 +172,11 @@ tbody tr:hover{background:#f8fafc}
 
 <div class="loading" id="loading"><div class="spinner"></div></div>
 
-<div class="diagnose-overlay" id="diagnoseOverlay">
-  <div class="diagnose-box">
-    <div class="diagnose-header">
-      <h3 id="diagnoseTitle">上传诊断</h3>
-      <button class="dz-close" onclick="document.getElementById('diagnoseOverlay').classList.remove('show')">关闭</button>
-    </div>
-    <div class="diagnose-body" id="diagnoseBody"></div>
-  </div>
-</div>
-
-<div class="paste-overlay" id="pasteOverlay">
-  <div class="paste-box">
-    <div class="paste-header">
-      <h3>粘贴数据（绕过绿盾加密）</h3>
-      <button class="dz-close" onclick="document.getElementById('pasteOverlay').classList.remove('show')">关闭</button>
-    </div>
-    <div class="paste-body">
-      <p class="hint" id="pasteHint" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:12px">
-        🚀 <b>一键导入：</b>把加密表格拖到桌面的 <b>「转换加密表格.bat」</b> 脚本 → 数据即复制到剪贴板 → 回来点下方 <b>「读取剪贴板」</b> 即可！<br>
-        <span style="font-size:12px;color:#64748b">手动方式：WPS/Excel 中 Ctrl+A 全选 → Ctrl+C 复制 → 粘贴到下方文本框</span>
-      </p>
-      <textarea id="pasteText" placeholder="点「读取剪贴板」自动填入，或手动 Ctrl+V 粘贴..."></textarea>
-      <div class="paste-actions">
-        <button class="btn-paste-cancel" onclick="document.getElementById('pasteOverlay').classList.remove('show')">取消</button>
-        <button class="btn-paste-confirm-clipboard" id="btnReadClipboard" onclick="readClipboard()" style="background:#6366f1;color:#fff">📋 读取剪贴板</button>
-        <button class="btn-paste-confirm" onclick="handlePaste()">解析导入</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div class="container">
   <div class="header">
     <div>
       <h1>直发质检任务看板</h1>
-      <div class="last-update" id="lastUpdate">数据更新时间: 2026/5/31 21:11:51 (来自上传)</div>
-    </div>
-    <div class="upload-area" id="uploadArea" style="display: none;">
-      <input type="file" id="uploadInput" accept=".xlsx,.xls,.csv">
-      <input type="file" id="csvInput" accept=".csv,.xlsx,.xls" style="display:none">
-      <button class="upload-btn" onclick="document.getElementById('uploadInput').click()">
-        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-        上传Excel
-      </button>
-      <button class="upload-btn" style="background:#6b7280" onclick="document.getElementById('csvInput').click()">
-        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-        上传CSV
-      </button>
-      <button class="upload-btn" style="background:#10b981" onclick="showPasteDialog()">
-        <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
-        粘贴数据
-      </button>
+      <div class="last-update" id="lastUpdate">数据更新时间: --</div>
     </div>
     <button class="logout-btn" onclick="doLogout()">退出登录</button>
   </div>
@@ -326,8 +279,6 @@ async function doLogin() {
     sessionStorage.setItem('wb_logged_user', user);
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('dashboardContent').classList.remove('hidden');
-    // 仅 xuwei 有上传权限
-    document.getElementById('uploadArea').style.display = user === 'xuwei' ? 'flex' : 'none';
   } else {
     err.textContent = '账号或密码错误';
   }
@@ -337,7 +288,6 @@ function doLogout() {
   sessionStorage.removeItem('wb_logged_user');
   document.getElementById('loginOverlay').classList.remove('hidden');
   document.getElementById('dashboardContent').classList.add('hidden');
-  document.getElementById('uploadArea').style.display = 'none';
   document.getElementById('loginUser').value = '';
   document.getElementById('loginPass').value = '';
   document.getElementById('loginError').textContent = '';
@@ -351,7 +301,6 @@ function doLogout() {
     // 已登录，直接跳过登录界面
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('dashboardContent').classList.remove('hidden');
-    if (savedUser === 'xuwei') document.getElementById('uploadArea').style.display = 'flex';
   }
 })();
 
@@ -440,9 +389,6 @@ async function init() {
   applyFilters();
   document.getElementById('lastUpdate').textContent = '数据更新时间: ' + (hasSaved ? savedTime : new Date().toLocaleString('zh-CN')) + ' | 数据源: ' + sourceLabel + ' | 总记录: ' + allData.length + ' | 工厂: ' + Object.keys(allData.reduce(function(m,d){m[d['工厂代码']]=1;return m;},{})).sort().join(',');
 
-  // SheetJS upload
-  document.getElementById('uploadInput').addEventListener('change', handleUpload);
-  document.getElementById('csvInput').addEventListener('change', handleCsvUpload);
   // combobox events
   setupCombobox('filterPlan', 'dropdownPlan');
   setupCombobox('filterMsku', 'dropdownMsku');
@@ -702,355 +648,13 @@ function resetFilters() {
 function esc(s) { return (s === null || s === undefined) ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escAttr(s) { return (s === null || s === undefined) ? '' : String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ========== DOWNLOAD data.json ==========
-// 上传数据后自动下载 data.json，用户替换 GitHub 仓库中的文件即可全网更新
-function downloadDataJson() {
-  var jsonStr = JSON.stringify(allData, null, 2);
-  var blob = new Blob([jsonStr], {type: 'application/json;charset=utf-8'});
-
-  if (typeof window.showSaveFilePicker === 'function') {
-    window.showSaveFilePicker({
-      suggestedName: 'data.json',
-      types: [{description: 'JSON', accept: {'application/json': ['.json']}}]
-    }).then(function(handle) {
-      return handle.createWritable().then(function(w) {
-        return w.write(blob).then(function() { return w.close(); });
-      });
-    }).then(function() {
-      alert('✅ data.json 已保存！\n\n请将此文件上传到 GitHub 仓库替换旧的 data.json，\n网页数据将在 1-2 分钟内自动更新。');
-    }).catch(function(e) {
-      if (e.name !== 'AbortError') fallbackDownloadJson(blob);
-    });
-  } else {
-    fallbackDownloadJson(blob);
-  }
-}
-
-function fallbackDownloadJson(blob) {
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = 'data.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  alert('✅ data.json 已下载！\n\n请将此文件上传到 GitHub 仓库替换旧的 data.json，\n网页数据将自动更新。');
-}
-
 // ========== UPLOAD (Excel) ==========
-var EXPECTED_COLS = ['主sku','计划编号','工厂代码','箱序','总只数','质检状态','供应商代码','仓库','发货时间','店铺','计划名称','店铺SKU','组合SKU','总箱数','包裹数'];
-
-function handleUpload(e) {
-  var file = e.target.files[0];
-  if (!file) return;
-  document.getElementById('loading').classList.add('show');
-  var reader = new FileReader();
-  reader.onload = function(ev) {
-    try {
-      var wb = XLSX.read(ev.target.result, {type: 'array'});
-      processSheetData(wb, file.name);
-    } catch(err) {
-      document.getElementById('loading').classList.remove('show');
-      if (err.message && err.message.indexOf('Unsupported') !== -1) {
-        alert('文件格式不支持！\n\n可能原因：\n1. 文件被绿盾加密，请先解密后再上传\n2. WPS .et 格式不支持，请另存为 .xlsx 或导出为 .csv\n\n建议：复制数据粘贴到记事本，另存为 .csv 格式后使用「上传CSV」按钮');
-      } else {
-        showDiagnose('文件解析失败', '错误: ' + err.message + '\n\n可能原因：文件被绿盾加密，加密文件无法被浏览器读取。\n\n解决方案：\n1. 在WPS/Excel中打开文件 → 全选复制 → 粘贴到记事本 → 另存为 .csv (UTF-8)\n2. 然后使用「上传CSV」按钮');
-      }
-    }
-    document.getElementById('uploadInput').value = '';
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-function processSheetData(wb, fileName) {
-  var sheet = wb.Sheets[wb.SheetNames[0]];
-  var rows = XLSX.utils.sheet_to_json(sheet, {defval: ''});
-  if (rows.length === 0) {
-    document.getElementById('loading').classList.remove('show');
-    alert('Excel 无数据行。请检查文件是否正确。\n\n可能原因：文件被绿盾加密 → 另存为 .csv 再用「上传CSV」');
-    return;
-  }
-  processRows(rows, fileName, 'Excel (' + wb.SheetNames[0] + ')');
-}
-
-// ========== CSV UPLOAD ==========
-function handleCsvUpload(e) {
-  var file = e.target.files[0];
-  if (!file) return;
-  document.getElementById('loading').classList.add('show');
-  var reader = new FileReader();
-  reader.onload = function(ev) {
-    try {
-      var text = ev.target.result;
-      // Try to detect encoding issues from 绿盾
-      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM
-      var wb = XLSX.read(text, {type: 'string', raw: true});
-      processSheetData(wb, file.name);
-    } catch(err) {
-      document.getElementById('loading').classList.remove('show');
-      showDiagnose('CSV解析失败', '错误: ' + err.message + '\n\nCSV文件可能也被绿盾加密。\n请确认：在记事本中能看到正常的中文数据，而不是乱码或空白。');
-    }
-    document.getElementById('csvInput').value = '';
-  };
-  reader.readAsText(file, 'UTF-8');
-}
+// Upload/paste removed - data now updated via desktop drag-drop script
 
 // ========== SHARED PROCESSING ==========
 function processRows(rows, fileName, source) {
-  // 第一步：诊断 —— 显示原始列名
-  var rawCols = Object.keys(rows[0] || {});
-  var matchedCols = []; var unmatchedCols = [];
-  var keyMap = {
-    '主SKU':'主sku','主sku':'主sku','计划编号':'计划编号','工厂代码':'工厂代码',
-    '箱序':'箱序','总只数':'总只数','质检状态':'质检状态','供应商代码':'供应商代码',
-    '仓库':'仓库','发货时间':'发货时间','店铺':'店铺','计划名称':'计划名称',
-    '店铺SKU':'店铺SKU','组合SKU':'组合SKU','总箱数':'总箱数','包裹数':'包裹数'
-  };
-
-  rawCols.forEach(function(c) {
-    var tc = c.trim();
-    if (keyMap[tc] === undefined) {
-      unmatchedCols.push(tc);
-    } else {
-      matchedCols.push(tc + ' → ' + keyMap[tc]);
-    }
-  });
-
-  // Build diagnostic HTML
-  var diagHtml = '<p><b>文件:</b> ' + fileName + ' | <b>来源:</b> ' + source + ' | <b>行数:</b> ' + rows.length + '</p>';
-  diagHtml += '<p><b>检测到的列名 (' + rawCols.length + ' 列):</b></p>';
-  diagHtml += '<table><tr><th>原始列名</th><th>映射结果</th><th>状态</th></tr>';
-  rawCols.forEach(function(c) {
-    var tc = c.trim();
-    var mapped = keyMap[tc];
-    if (mapped) {
-      diagHtml += '<tr><td>' + esc(c) + '</td><td>' + esc(mapped) + '</td><td><span class="tag-ok">已匹配</span></td></tr>';
-    } else {
-      diagHtml += '<tr><td>' + esc(c) + '</td><td>' + esc(tc) + '</td><td><span class="tag-warn">未映射</span></td></tr>';
-    }
-  });
-  diagHtml += '</table>';
-
-  // Check critical columns
-  var criticalCols = ['主sku','质检状态','工厂代码'];
-  var missingCritical = [];
-  criticalCols.forEach(function(cc) {
-    var found = false;
-    rawCols.forEach(function(c) {
-      if (keyMap[c.trim()] === cc) found = true;
-    });
-    if (!found) missingCritical.push(cc);
-  });
-
-  if (missingCritical.length > 0) {
-    diagHtml += '<p style="color:#991b1b;font-weight:bold">⚠ 缺少关键列: ' + missingCritical.join(', ') + '。数据将无法正常显示！</p>';
-  }
-
-  // Sample data preview
-  diagHtml += '<p><b>前3行数据预览:</b></p><table><tr>';
-  rawCols.slice(0, 6).forEach(function(c) { diagHtml += '<th>' + esc(c) + '</th>'; });
-  diagHtml += '</tr>';
-  rows.slice(0, 3).forEach(function(r) {
-    diagHtml += '<tr>';
-    rawCols.slice(0, 6).forEach(function(c) {
-      var v = r[c];
-      diagHtml += '<td>' + esc(String(v === undefined || v === null ? '' : v).substring(0, 30)) + '</td>';
-    });
-    diagHtml += '</tr>';
-  });
-  diagHtml += '</table>';
-
-  // Encrypted file detection
-  var encryptedDetected = false;
-  // 检测1: 列名全是 __EMPTY 变体 → 绿盾加密
-  var emptyCount = 0;
-  rawCols.forEach(function(c) { if (/^__EMPTY/.test(c)) emptyCount++; });
-  if (emptyCount >= rawCols.length - 2 && rawCols.length > 0) {
-    encryptedDetected = true;
-  }
-  // 检测2: 前5行有大量控制字符/乱码
-  if (!encryptedDetected) {
-    var garbledCount = 0;
-    rows.slice(0, 5).forEach(function(r) {
-      rawCols.forEach(function(c) {
-        var v = String(r[c] || '');
-        // 检测非ASCII非中文字符占比高
-        var nonNormal = 0;
-        for (var i = 0; i < Math.min(v.length, 50); i++) {
-          var code = v.charCodeAt(i);
-          if (code < 32 && code !== 9 && code !== 10 && code !== 13) nonNormal++;
-        }
-        if (nonNormal > 3) garbledCount++;
-      });
-    });
-    if (garbledCount >= 3) encryptedDetected = true;
-  }
-  // 检测3: 总字符数少但行数多
-  if (!encryptedDetected) {
-    var totalChars = 0;
-    rows.slice(0, 5).forEach(function(r) {
-      rawCols.forEach(function(c) { totalChars += String(r[c] || '').length; });
-    });
-    if (totalChars < 20 && rows.length > 0) encryptedDetected = true;
-  }
-
-  if (encryptedDetected) {
-    diagHtml += '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px;margin-top:10px">';
-    diagHtml += '<p style="color:#991b1b;font-weight:bold;font-size:14px;margin:0 0 8px 0">🔒 检测到文件被绿盾加密！</p>';
-    diagHtml += '<p style="color:#7f1d1d;font-size:13px;margin:0;line-height:1.7">文件内容是加密乱码，浏览器无法读取。请使用 <b>「粘贴数据」</b> 方式：<br>';
-    diagHtml += '① 在 WPS/Excel 中打开表格 → Ctrl+A 全选 → Ctrl+C 复制<br>';
-    diagHtml += '② 回来点击绿色 <b>「粘贴数据」</b> 按钮 → Ctrl+V 粘贴 → 解析导入</p>';
-    diagHtml += '</div>';
-  }
-
-  showDiagnose('上传诊断 — ' + fileName, diagHtml);
-
-  // 第二步：只有关键列都匹配时才导入数据
-  if (missingCritical.length > 0) {
-    document.getElementById('loading').classList.remove('show');
-    return;
-  }
-
-  // 第三步：正常映射
-  allData = rows.map(function(r) {
-    var obj = {};
-    for (var k in r) {
-      var trimK = k.trim();
-      var nk = keyMap[trimK] || trimK;
-      if (nk === '发货时间' && r[k]) {
-        var v = String(r[k]).trim();
-        if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { obj[nk] = v; }
-        else if (/^\d{4,5}$/.test(v) && parseInt(v) > 30000 && parseInt(v) < 80000) {
-          // Excel 日期序列号（如 46175 → 2026-06-01）
-          var serial = parseInt(v);
-          var jsDate = new Date((serial - 25569) * 86400000);
-          obj[nk] = jsDate.getFullYear() + '-' + String(jsDate.getMonth()+1).padStart(2,'0') + '-' + String(jsDate.getDate()).padStart(2,'0');
-        }
-        else { var d = new Date(v); if (!isNaN(d.getTime())) { obj[nk] = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); } else { obj[nk] = v; } }
-      } else if (nk === '质检状态' || nk === '工厂代码') {
-        obj[nk] = String(r[k]).trim();
-      } else {
-        obj[nk] = r[k];
-      }
-    }
-    return obj;
-  });
-
-  // Rebuild filter dropdowns
-  var sf = document.getElementById('filterFactory');
-  sf.innerHTML = '<option value="">全部</option>';
-  var sd = document.getElementById('filterDate');
-  sd.innerHTML = '<option value="">全部</option>';
-  var factories = {}; allData.forEach(function(d) { if(d['工厂代码']) factories[d['工厂代码']] = true; });
-  var dates = {}; allData.forEach(function(d) { if(d['发货时间']) dates[d['发货时间']] = true; });
-  Object.keys(factories).sort().forEach(function(f) { sf.appendChild(createOption(f, f)); });
-  Object.keys(dates).sort().forEach(function(d) { sd.appendChild(createOption(d, d)); });
-
-  applyFilters();
-  var upTime = new Date().toLocaleString('zh-CN');
-  var fKeys = Object.keys(allData.reduce(function(m,d){m[d['工厂代码']]=1;return m;},{})).sort().join(',');
-  document.getElementById('lastUpdate').textContent = '数据更新时间: ' + upTime + ' | 数据源: 上传 | 总记录: ' + allData.length + ' | 工厂: ' + fKeys;
-  try { localStorage.setItem('dashboard_data', JSON.stringify(allData)); localStorage.setItem('dashboard_time', upTime); } catch(e) {}
-  setTimeout(function() { downloadDataJson(); }, 300);
-  document.getElementById('loading').classList.remove('show');
-  alert('✅ 成功导入 ' + allData.length + ' 条记录。\n\ndata.json 即将自动下载。\n请将此文件上传到 GitHub 仓库替换旧文件，\n网页数据将自动更新。');
-}
-
-function showDiagnose(title, html) {
-  document.getElementById('diagnoseTitle').textContent = title;
-  document.getElementById('diagnoseBody').innerHTML = html;
-  document.getElementById('diagnoseOverlay').classList.add('show');
-}
-
-// ========== PASTE DATA (绕过绿盾加密) ==========
-var clipboardPermission = 'prompt'; // prompt | granted | denied
-
-async function readClipboard() {
-  var btn = document.getElementById('btnReadClipboard');
-  var ta = document.getElementById('pasteText');
-
-  btn.disabled = true;
-  btn.textContent = '⏳ 读取中...';
-
-  try {
-    // 尝试读取剪贴板
-    var text = await navigator.clipboard.readText();
-    if (!text || !text.trim()) {
-      alert('剪贴板为空。\n\n请先将加密表格拖到桌面的「转换加密表格.bat」脚本上，\n或手动在 WPS/Excel 中 Ctrl+A 全选 → Ctrl+C 复制。');
-      btn.disabled = false;
-      btn.textContent = '📋 读取剪贴板';
-      return;
-    }
-    ta.value = text;
-    clipboardPermission = 'granted';
-    btn.textContent = '✅ 已读取';
-    btn.style.background = '#10b981';
-
-    // 检查是否像表格数据
-    var lines = text.trim().split('\n');
-    if (lines.length > 1 && lines[0].indexOf('\t') !== -1) {
-      var headers = lines[0].split('\t').length;
-      // 自动解析导入
-      setTimeout(function() {
-        if (confirm('检测到剪贴板中有 ' + lines.length + ' 行 ' + headers + ' 列的表格数据。\n\n是否立即导入？')) {
-          handlePaste();
-        }
-      }, 300);
-    } else {
-      setTimeout(function() {
-        btn.textContent = '📋 读取剪贴板';
-        btn.style.background = '#6366f1';
-        btn.disabled = false;
-      }, 1500);
-    }
-  } catch (err) {
-    btn.disabled = false;
-    btn.textContent = '📋 读取剪贴板';
-
-    if (err.name === 'NotAllowedError') {
-      clipboardPermission = 'denied';
-      alert('浏览器拒绝了剪贴板读取权限。\n\n请手动 Ctrl+V 粘贴数据到文本框中，\n或点击浏览器地址栏左侧的锁图标 → 允许剪贴板权限。');
-    } else {
-      alert('读取剪贴板失败: ' + err.message + '\n\n请手动 Ctrl+V 粘贴数据到文本框中。');
-    }
-  }
-}
-
-function showPasteDialog() {
-  document.getElementById('pasteText').value = '';
-  document.getElementById('pasteOverlay').classList.add('show');
-  var btn = document.getElementById('btnReadClipboard');
-  btn.textContent = '📋 读取剪贴板';
-  btn.style.background = '#6366f1';
-  btn.disabled = false;
-  setTimeout(function() { document.getElementById('pasteText').focus(); }, 200);
-}
-
-function handlePaste() {
-  var raw = document.getElementById('pasteText').value;
-  if (!raw.trim()) { alert('请先在文本框中粘贴数据'); return; }
-
-  document.getElementById('pasteOverlay').classList.remove('show');
-  document.getElementById('loading').classList.add('show');
-
-  // 解析粘贴的Tab分隔数据
-  var lines = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(function(l) { return l.trim(); });
-  if (lines.length < 2) { alert('数据行数不足，请确保复制了表头+数据行'); document.getElementById('loading').classList.remove('show'); return; }
-
-  // 第一行是表头，Tab 分隔
-  var headers = lines[0].split('\t').map(function(h) { return h.trim(); });
-  var rows = [];
-  for (var i = 1; i < lines.length; i++) {
-    var vals = lines[i].split('\t');
-    var obj = {};
-    for (var j = 0; j < headers.length; j++) {
-      obj[headers[j]] = (vals[j] || '').trim();
-    }
-    rows.push(obj);
-  }
-
-  processRows(rows, '粘贴数据', '粘贴 (' + rows.length + ' 行)');
+  // Upload/paste removed - this function kept for backward compatibility
+  return;
 }
 // ========== BOOT ==========
 init();
