@@ -517,21 +517,24 @@ function buildCascadeOptions() {
 
 function buildFilterOptions() {
   var selectedFactory = document.getElementById('filterFactory').value;
+  var selectedDate = document.getElementById('filterDate').value;
 
-  // 工厂选项：始终从全量数据构建
-  var factories = {}; allData.forEach(function(d) { factories[d['工厂代码']] = true; });
+  // 工厂选项：只显示当前日期下实际存在的工厂
+  var baseForFactory = allData;
+  if (selectedDate) baseForFactory = baseForFactory.filter(function(d) { return d['发货时间'] === selectedDate; });
+  var factories = {}; baseForFactory.forEach(function(d) { factories[d['工厂代码']] = true; });
   var sf = document.getElementById('filterFactory');
   var currFactory = sf.value;
   sf.innerHTML = '<option value="">全部</option>';
   Object.keys(factories).sort().forEach(function(f) {
     sf.appendChild(createOption(f, f));
   });
-  sf.value = currFactory;  // 恢复选中
+  sf.value = currFactory;  // 恢复选中（如在选项中不存在则自动重置为"全部"）
 
   // 日期选项：只显示当前工厂下实际存在的日期
-  var baseData = allData;
-  if (selectedFactory) baseData = baseData.filter(function(d) { return d['工厂代码'] === selectedFactory; });
-  var dates = {}; baseData.forEach(function(d) { dates[d['发货时间']] = true; });
+  var baseForDate = allData;
+  if (selectedFactory) baseForDate = baseForDate.filter(function(d) { return d['工厂代码'] === selectedFactory; });
+  var dates = {}; baseForDate.forEach(function(d) { dates[d['发货时间']] = true; });
 
   var sd = document.getElementById('filterDate');
   var currDate = sd.value;
@@ -539,8 +542,7 @@ function buildFilterOptions() {
   Object.keys(dates).sort().forEach(function(d) {
     sd.appendChild(createOption(d, d));
   });
-  // 恢复之前选中（如果该日期在新选项中不存在则自动重置为"全部"）
-  sd.value = currDate;
+  sd.value = currDate;  // 恢复选中（如在选项中不存在则自动重置为"全部"）
 }
 
 function createOption(value, text) {
