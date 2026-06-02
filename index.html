@@ -32,6 +32,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",s
 .stat-card:nth-child(2){border-left:4px solid #f59e0b}
 .stat-card:nth-child(3){border-left:4px solid #94a3b8}
 .stat-card:nth-child(4){border-left:4px solid #10b981}
+.stat-card .factory-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.stat-card .factory-tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;line-height:1.6}
 
 /* Filters */
 .filter-section{background:#fff;border-radius:10px;padding:16px 20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
@@ -190,6 +192,7 @@ tbody tr:hover{background:#f8fafc}
       <span class="label">进行中</span>
       <span class="value" id="statProgress">69</span>
       <span class="sub" id="statProgressPct">占比 13.6%</span>
+      <span class="factory-tags" id="statProgressFactories"></span>
     </div>
     <div class="stat-card">
       <span class="label">未开始</span>
@@ -601,9 +604,13 @@ function updateStats() {
   var totalMsku = data.length;
 
   var progressCount = 0, notStartCount = 0;
+  var progressFactories = {};
   data.forEach(function(d) {
     var st = (d['质检状态'] || d['质检状态 '] || '').trim();
-    if (st === '进行中') progressCount++;
+    if (st === '进行中') {
+      progressCount++;
+      progressFactories[d['工厂代码']] = true;
+    }
     else if (st === '未开始') notStartCount++;
   });
 
@@ -624,6 +631,11 @@ function updateStats() {
     document.getElementById('statProgressPct').textContent = '占比 ' + (progressCount / total * 100).toFixed(1) + '%';
     document.getElementById('statNotStartPct').textContent = '占比 ' + (notStartCount / total * 100).toFixed(1) + '%';
   }
+  // 进行中工厂代码标签
+  var factoryList = Object.keys(progressFactories).sort();
+  document.getElementById('statProgressFactories').innerHTML = factoryList.map(function(f) {
+    return '<span class="factory-tag">' + f + '</span>';
+  }).join('');
 }
 
 function renderTable() {
