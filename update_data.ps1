@@ -91,12 +91,27 @@ try {
     & $gitExe commit -m ('update data ' + $dateStr)
     $commitOk = ($LASTEXITCODE -eq 0)
 
+    # 推送到 GitHub（带重试，最多 3 次）
+    function Push-WithRetry {
+        param($gitPath)
+        $maxTries = 3
+        for ($i = 1; $i -le $maxTries; $i++) {
+            if ($i -gt 1) {
+                Write-Host ('   Retry ' + ($i) + '/' + $maxTries + ' after 5s...')
+                Start-Sleep -Seconds 5
+            }
+            & $gitPath push origin main
+            if ($LASTEXITCODE -eq 0) { return $true }
+        }
+        return $false
+    }
+
     if ($commitOk) {
         Write-Host '   [4/4] Push to GitHub...'
-        & $gitExe push origin main
+        $pushOk = Push-WithRetry $gitExe
         Pop-Location
 
-        if ($LASTEXITCODE -eq 0) {
+        if ($pushOk) {
             Write-Host ''
             Write-Host '   ========================================'
             Write-Host '   [SUCCESS] New data pushed to GitHub!'
@@ -105,17 +120,39 @@ try {
         } else {
             Write-Host ''
             Write-Host '   ========================================'
-            Write-Host '   [FAILED] Git push error!'
-            Write-Host '   Screenshot this window for help.'
+            Write-Host '   [FAILED] Push failed after 3 retries!'
+            Write-Host '   Data committed locally. Re-run script when network is back.'
             Write-Host '   ========================================'
         }
     } else {
         Pop-Location
-        Write-Host ''
-        Write-Host '   ========================================'
-        Write-Host '   [INFO] Data unchanged - already up to date.'
-        Write-Host '   ' + $rows.Count + ' records, ' + $sizeKB + ' KB'
-        Write-Host '   ========================================'
+        # commit 跳过，但可能有之前没推成功的积压 commit
+        $ahead = & $gitExe rev-list --count origin/main..HEAD 2>$null
+        if ($LASTEXITCODE -eq 0 -and [int]$ahead -gt 0) {
+            Write-Host '   [PUSH] ' + $ahead + ' pending commit(s), pushing...'
+            Push-Location $deploy
+            $pushOk = Push-WithRetry $gitExe
+            Pop-Location
+            if ($pushOk) {
+                Write-Host ''
+                Write-Host '   ========================================'
+                Write-Host '   [SUCCESS] Pending commits pushed!'
+                Write-Host '   Refresh: https://zhongshanms.github.io/zhifa-dashboard/'
+                Write-Host '   ========================================'
+            } else {
+                Write-Host ''
+                Write-Host '   ========================================'
+                Write-Host '   [FAILED] Push failed after 3 retries!'
+                Write-Host '   Check network and try again.'
+                Write-Host '   ========================================'
+            }
+        } else {
+            Write-Host ''
+            Write-Host '   ========================================'
+            Write-Host '   [INFO] Data unchanged - already up to date.'
+            Write-Host '   ' + $rows.Count + ' records, ' + $sizeKB + ' KB'
+            Write-Host '   ========================================'
+        }
     }
 } catch {
     Write-Host ''
