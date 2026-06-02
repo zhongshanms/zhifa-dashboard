@@ -268,6 +268,28 @@ async function sha256(message) {
   return hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
 }
 
+var LOGIN_KEY = 'wb_auth_v2';
+var LOGIN_TTL = 30 * 24 * 60 * 60 * 1000;  // 30 天，单位毫秒
+
+function saveLoginState(user) {
+  var record = { user: user, expire: Date.now() + LOGIN_TTL };
+  localStorage.setItem(LOGIN_KEY, JSON.stringify(record));
+}
+
+function loadLoginState() {
+  try {
+    var raw = localStorage.getItem(LOGIN_KEY);
+    if (!raw) return null;
+    var record = JSON.parse(raw);
+    if (!record || !record.user || !record.expire) return null;
+    if (Date.now() > record.expire) {
+      localStorage.removeItem(LOGIN_KEY);  // 过期自动清除
+      return null;
+    }
+    return record.user;
+  } catch(e) { return null; }
+}
+
 async function doLogin() {
   var user = document.getElementById('loginUser').value.trim();
   var pass = document.getElementById('loginPass').value;
@@ -276,7 +298,7 @@ async function doLogin() {
   var hashed = await sha256(pass);
   if (ACCOUNTS[user] && ACCOUNTS[user] === hashed) {
     err.textContent = '';
-    sessionStorage.setItem('wb_logged_user', user);
+    saveLoginState(user);  // 持久化，有效期 30 天
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('dashboardContent').classList.remove('hidden');
   } else {
@@ -285,7 +307,7 @@ async function doLogin() {
 }
 
 function doLogout() {
-  sessionStorage.removeItem('wb_logged_user');
+  localStorage.removeItem(LOGIN_KEY);  // 主动退出清除持久化状态
   document.getElementById('loginOverlay').classList.remove('hidden');
   document.getElementById('dashboardContent').classList.add('hidden');
   document.getElementById('loginUser').value = '';
@@ -294,11 +316,10 @@ function doLogout() {
   document.getElementById('loginUser').focus();
 }
 
-// 页面加载：自动恢复登录状态
+// 页面加载：自动恢复登录状态（支持跨进程/重启）
 (function() {
-  var savedUser = sessionStorage.getItem('wb_logged_user');
+  var savedUser = loadLoginState();
   if (savedUser && ACCOUNTS[savedUser]) {
-    // 已登录，直接跳过登录界面
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('dashboardContent').classList.remove('hidden');
   }
