@@ -566,7 +566,7 @@ function buildFilterOptions() {
   var currDate = sd.value;
   sd.innerHTML = '<option value="">全部</option>';
   Object.keys(dates).sort().forEach(function(d) {
-    sd.appendChild(createOption(formatDate(d), d));
+    sd.appendChild(createOption(d, formatDate(d)));
   });
   sd.value = currDate;  // 恢复选中（如在选项中不存在则自动重置为"全部"）
 }
