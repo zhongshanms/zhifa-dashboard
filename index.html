@@ -362,51 +362,51 @@ async function init() {
   var hasSaved = false;
   var savedTime = '';
 
-  // 1) 先尝试 localStorage（上传后即时生效）
-  try {
-    var saved = localStorage.getItem('dashboard_data');
-    savedTime = localStorage.getItem('dashboard_time') || '';
-    if (saved) {
-      var parsed = JSON.parse(saved);
-      if (parsed.length > 0 && parsed[0]['主sku'] !== undefined) {
-        allData = parsed;
-        hasSaved = true;
-        sourceLabel = 'localStorage';
+  // 1) 优先从 GitHub / CDN 拉取最新 data.json（带重试）
+  var fetchUrls = [
+    DATA_URL,                                                   // 主源：GitHub raw
+    'https://cdn.jsdelivr.net/gh/zhongshanms/zhifa-dashboard@main/data.json'  // 备用：jsDelivr CDN
+  ];
+  var fetchOk = false;
+  var maxRetries = 2;
+
+  for (var u = 0; u < fetchUrls.length && !fetchOk; u++) {
+    var fetchUrl = fetchUrls[u];
+    for (var attempt = 0; attempt <= maxRetries && !fetchOk; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(function(r) { setTimeout(r, 1500); });
+        var resp = await fetch(fetchUrl, {cache: 'no-store'});
+        if (resp.ok) {
+          var remoteData = await resp.json();
+          if (remoteData && remoteData.length > 0) {
+            allData = remoteData;
+            sourceLabel = (u === 0 ? 'GitHub' : 'CDN');
+            fetchOk = true;
+            // 同步写入 localStorage 作为离线备份
+            try { localStorage.setItem('dashboard_data', JSON.stringify(allData)); localStorage.setItem('dashboard_time', new Date().toLocaleString('zh-CN')); } catch(e) {}
+          }
+        }
+      } catch(e) {
+        console.warn('Fetch attempt ' + (attempt+1) + ' from ' + fetchUrl + ': ' + e.message);
       }
     }
-  } catch(e) {}
+  }
 
-  // 2) 没有本地缓存 → 从 GitHub / CDN 拉取 data.json（带重试）
-  if (!hasSaved) {
-    var fetchUrls = [
-      DATA_URL,                                                   // 主源：GitHub raw
-      'https://cdn.jsdelivr.net/gh/zhongshanms/zhifa-dashboard@main/data.json'  // 备用：jsDelivr CDN
-    ];
-    var fetchOk = false;
-    var maxRetries = 2;  // 每个 URL 最多试 3 次（1次初始 + 2次重试）
-
-    for (var u = 0; u < fetchUrls.length && !fetchOk; u++) {
-      var fetchUrl = fetchUrls[u];
-      for (var attempt = 0; attempt <= maxRetries && !fetchOk; attempt++) {
-        try {
-          if (attempt > 0) await new Promise(function(r) { setTimeout(r, 1500); }); // 重试前等 1.5s
-          var resp = await fetch(fetchUrl, {cache: 'no-store'});
-          if (resp.ok) {
-            var remoteData = await resp.json();
-            if (remoteData && remoteData.length > 0) {
-              allData = remoteData;
-              sourceLabel = (u === 0 ? 'GitHub' : 'CDN');
-              fetchOk = true;
-              // 缓存到 localStorage 加速下次加载
-              try { localStorage.setItem('dashboard_data', JSON.stringify(allData)); localStorage.setItem('dashboard_time', new Date().toLocaleString('zh-CN')); } catch(e) {}
-            }
-          }
-        } catch(e) {
-          console.warn('Fetch attempt ' + (attempt+1) + ' from ' + fetchUrl + ': ' + e.message);
+  // 2) 远程拉取失败 → 降级到 localStorage 缓存
+  if (!fetchOk) {
+    try {
+      var saved = localStorage.getItem('dashboard_data');
+      savedTime = localStorage.getItem('dashboard_time') || '';
+      if (saved) {
+        var parsed = JSON.parse(saved);
+        if (parsed.length > 0 && parsed[0]['主sku'] !== undefined) {
+          allData = parsed;
+          hasSaved = true;
+          sourceLabel = 'localStorage (offline)';
+          console.warn('Using cached data (fetch failed), last update: ' + savedTime);
         }
       }
-    }
-    if (!fetchOk) console.warn('All fetch sources failed - displaying empty state');
+    } catch(e) {}
   }
 
   // 3) 如果都没有数据，显示空状态
