@@ -127,6 +127,8 @@ tbody tr:hover{background:#f8fafc}
   .header h1{font-size:18px}
   .stat-card .value{font-size:22px}
   .container{padding:8px}
+  td:nth-child(3),th:nth-child(3){width:52px;min-width:52px;max-width:52px}  /* 工厂代码 */
+  td:nth-child(9),th:nth-child(9){width:90px;min-width:90px;max-width:90px;white-space:nowrap}  /* 发货时间 */
 }
 
 @media(max-width:480px){
@@ -564,7 +566,7 @@ function buildFilterOptions() {
   var currDate = sd.value;
   sd.innerHTML = '<option value="">全部</option>';
   Object.keys(dates).sort().forEach(function(d) {
-    sd.appendChild(createOption(d, d));
+    sd.appendChild(createOption(formatDate(d), d));
   });
   sd.value = currDate;  // 恢复选中（如在选项中不存在则自动重置为"全部"）
 }
@@ -660,7 +662,7 @@ function renderTable() {
       '<td>' + (d['包裹数'] !== undefined && d['包裹数'] !== '' ? d['包裹数'] : '') + '</td>' +
       '<td>' + d['总只数'] + '</td>' +
       '<td><span class="status-badge ' + statusClass + '">' + esc(statusBadge) + '</span></td>' +
-      '<td>' + esc(d['发货时间']) + '</td>' +
+      '<td style="white-space:nowrap">' + formatDate(d['发货时间']) + '</td>' +
       '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escAttr(d['计划名称']) + '">' + esc(d['计划名称']) + '</td>' +
       '</tr>';
   }).join('');
@@ -705,6 +707,7 @@ function resetFilters() {
 
 function esc(s) { return (s === null || s === undefined) ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escAttr(s) { return (s === null || s === undefined) ? '' : String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function formatDate(raw) { if (!raw) return ''; return String(raw).replace(/-/g, '/'); }
 
 // ========== UPLOAD (Excel) ==========
 // Upload/paste removed - data now updated via desktop drag-drop script
