@@ -64,7 +64,11 @@ try {
 
     Write-Host ('   Read ' + $rows.Count + ' records')
     Write-Host '   [2/4] Convert to JSON...'
-    $json = ConvertTo-Json -InputObject $rows -Depth 10 -Compress
+    # 附加 _updateTime 元字段，供网页显示真实数据更新时间
+    $updateTimeStr = Get-Date -Format 'yyyy/MM/dd HH:mm'
+    $metaRow = @{ '_updateTime' = $updateTimeStr }
+    $payload = @{ meta = $metaRow; data = $rows }
+    $json = ConvertTo-Json -InputObject $payload -Depth 10 -Compress
     if (-not (Test-Path $deploy)) { New-Item -ItemType Directory -Path $deploy -Force | Out-Null }
     $jsonPath = Join-Path $deploy 'data.json'
     [IO.File]::WriteAllText($jsonPath, $json, [Text.Encoding]::UTF8)

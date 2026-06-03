@@ -127,7 +127,7 @@ tbody tr:hover{background:#f8fafc}
   .header h1{font-size:18px}
   .stat-card .value{font-size:22px}
   .container{padding:8px}
-  td:nth-child(3),th:nth-child(3){width:52px;min-width:52px;max-width:52px}  /* 工厂代码 */
+  td:nth-child(3),th:nth-child(3){width:52px;min-width:52px;max-width:52px;padding-left:0}  /* 工厂代码：左移3字宽 */
   td:nth-child(9),th:nth-child(9){width:90px;min-width:90px;max-width:90px;white-space:nowrap}  /* 发货时间 */
 }
 
@@ -366,6 +366,7 @@ async function init() {
   var sourceLabel = 'EMBDATA';
   var hasSaved = false;
   var savedTime = '';
+  var dataUpdateTime = '';  // 真实数据更新时间（来自 data.json 内 meta._updateTime）
 
   // 1) 优先从 GitHub / CDN 拉取最新 data.json（带重试）
   var fetchUrls = [
@@ -383,12 +384,21 @@ async function init() {
         var resp = await fetch(fetchUrl, {cache: 'no-store'});
         if (resp.ok) {
           var remoteData = await resp.json();
-          if (remoteData && remoteData.length > 0) {
-            allData = remoteData;
+          // 兼容新格式 {meta:{_updateTime:...}, data:[...]} 和旧格式 [...]
+          var remoteRows = Array.isArray(remoteData) ? remoteData : (remoteData.data || []);
+          var remoteMeta = (!Array.isArray(remoteData) && remoteData.meta) ? remoteData.meta : null;
+          if (remoteRows && remoteRows.length > 0) {
+            allData = remoteRows;
+            if (remoteMeta && remoteMeta._updateTime) {
+              dataUpdateTime = remoteMeta._updateTime;  // 一键更新脚本写入的真实时间
+            }
             sourceLabel = (u === 0 ? 'GitHub' : 'CDN');
             fetchOk = true;
             // 同步写入 localStorage 作为离线备份
-            try { localStorage.setItem('dashboard_data', JSON.stringify(allData)); localStorage.setItem('dashboard_time', new Date().toLocaleString('zh-CN')); } catch(e) {}
+            try {
+              localStorage.setItem('dashboard_data', JSON.stringify(allData));
+              localStorage.setItem('dashboard_time', dataUpdateTime || new Date().toLocaleString('zh-CN'));
+            } catch(e) {}
           }
         }
       } catch(e) {
@@ -407,7 +417,7 @@ async function init() {
         if (parsed.length > 0 && parsed[0]['主sku'] !== undefined) {
           allData = parsed;
           hasSaved = true;
-          sourceLabel = 'localStorage (offline)';
+          sourceLabel = 'localStorage (离线缓存)';
           console.warn('Using cached data (fetch failed), last update: ' + savedTime);
         }
       }
@@ -424,7 +434,9 @@ async function init() {
 
   buildFilterOptions();
   applyFilters();
-  document.getElementById('lastUpdate').textContent = '数据更新时间: ' + (hasSaved ? savedTime : new Date().toLocaleString('zh-CN')) + ' | 数据源: ' + sourceLabel + ' | 总记录: ' + allData.length + ' | 工厂: ' + Object.keys(allData.reduce(function(m,d){m[d['工厂代码']]=1;return m;},{})).sort().join(',');
+  // 数据更新时间：优先用 data.json 里记录的真实一键更新时间，其次用 localStorage 缓存时间
+  var displayTime = hasSaved ? savedTime : (dataUpdateTime || '--');
+  document.getElementById('lastUpdate').textContent = '数据更新时间: ' + displayTime + ' | 数据源: ' + sourceLabel + ' | 总记录: ' + allData.length + ' | 工厂: ' + Object.keys(allData.reduce(function(m,d){m[d['工厂代码']]=1;return m;},{})).sort().join(',');
 
   // combobox events
   setupCombobox('filterPlan', 'dropdownPlan');
