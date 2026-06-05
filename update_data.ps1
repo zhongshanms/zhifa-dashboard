@@ -95,7 +95,7 @@ try {
     & $gitExe commit -m ('update data ' + $dateStr)
     $commitOk = ($LASTEXITCODE -eq 0)
 
-    # 推送到 GitHub（带重试，最多 3 次）
+    # 推送到 GitHub（带重试：网络问题重试，冲突则自动 rebase）
     function Push-WithRetry {
         param($gitPath)
         $maxTries = 3
@@ -104,8 +104,15 @@ try {
                 Write-Host ('   Retry ' + ($i) + '/' + $maxTries + ' after 5s...')
                 Start-Sleep -Seconds 5
             }
-            & $gitPath push origin main
+            $output = & $gitPath push origin main 2>&1
             if ($LASTEXITCODE -eq 0) { return $true }
+            # 如果远程有新提交导致冲突，先 rebase 再重试
+            if ($output -match 'rejected') {
+                Write-Host '   Remote has newer commits, pulling & rebasing...'
+                & $gitPath pull --rebase origin main 2>&1 | Out-Null
+                $output = & $gitPath push origin main 2>&1
+                if ($LASTEXITCODE -eq 0) { return $true }
+            }
         }
         return $false
     }
