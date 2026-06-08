@@ -604,7 +604,7 @@ function buildFilterOptions() {
   var currDate = sd.value;
   sd.innerHTML = '<option value="">全部</option>';
   Object.keys(dates).sort().forEach(function(d) {
-    sd.appendChild(createOption(d, formatDate(d)));
+    sd.appendChild(createOption(d, formatDateWithWeekday(d)));
   });
   sd.value = currDate;  // 恢复选中（如在选项中不存在则自动重置为"全部"）
 }
@@ -746,6 +746,8 @@ function resetFilters() {
 function esc(s) { return (s === null || s === undefined) ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escAttr(s) { return (s === null || s === undefined) ? '' : String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function formatDate(raw) { if (!raw) return ''; return String(raw).replace(/-/g, '/'); }
+function getWeekday(raw) { if (!raw) return ''; var parts = String(raw).split('-'); if (parts.length !== 3) return ''; var WDAYS = ['周日','周一','周二','周三','周四','周五','周六']; return ' ' + WDAYS[new Date(+parts[0], +parts[1] - 1, +parts[2]).getDay()]; }
+function formatDateWithWeekday(raw) { return formatDate(raw) + getWeekday(raw); }
 
 // ========== UPLOAD (Excel) ==========
 // Upload/paste removed - data now updated via desktop drag-drop script
