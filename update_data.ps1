@@ -125,8 +125,9 @@ try {
         if ($pushOk) {
             Write-Host ''
             Write-Host '   ========================================'
-            Write-Host '   [SUCCESS] New data pushed to GitHub!'
-            Write-Host '   Refresh: https://zhongshanms.github.io/zhifa-dashboard/'
+            Write-Host '   [SUCCESS] Pushed to GitHub!'
+            Write-Host '   GitHub  : https://zhongshanms.github.io/zhifa-dashboard/'
+            Write-Host '   EdgeOne : https://zhifa-dashboard-uwsschnm.edgeone.cool/'
             Write-Host '   ========================================'
         } else {
             Write-Host ''
@@ -148,7 +149,8 @@ try {
                 Write-Host ''
                 Write-Host '   ========================================'
                 Write-Host '   [SUCCESS] Pending commits pushed!'
-                Write-Host '   Refresh: https://zhongshanms.github.io/zhifa-dashboard/'
+                Write-Host '   GitHub  : https://zhongshanms.github.io/zhifa-dashboard/'
+                Write-Host '   EdgeOne : https://zhifa-dashboard-uwsschnm.edgeone.cool/'
                 Write-Host '   ========================================'
             } else {
                 Write-Host ''

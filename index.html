@@ -397,8 +397,10 @@ async function init() {
   // 1) 优先从 GitHub / CDN 拉取最新 data.json（带重试）
   var fetchUrls = [
     DATA_URL,                                                   // 主源：GitHub raw
-    'https://cdn.jsdelivr.net/gh/zhongshanms/zhifa-dashboard@main/data.json'  // 备用：jsDelivr CDN
+    'https://cdn.jsdelivr.net/gh/zhongshanms/zhifa-dashboard@main/data.json',  // 备用：jsDelivr CDN
+    'https://zhifa-dashboard-uwsschnm.edgeone.cool/data.json'   // 备用：EdgeOne Pages（国内）
   ];
+  var sourceNames = ['GitHub','CDN','EdgeOne'];
   var fetchOk = false;
   var maxRetries = 2;
 
@@ -418,7 +420,7 @@ async function init() {
             if (remoteMeta && remoteMeta._updateTime) {
               dataUpdateTime = remoteMeta._updateTime;  // 一键更新脚本写入的真实时间
             }
-            sourceLabel = (u === 0 ? 'GitHub' : 'CDN');
+            sourceLabel = sourceNames[u];
             fetchOk = true;
             // 同步写入 localStorage 作为离线备份
             try {
