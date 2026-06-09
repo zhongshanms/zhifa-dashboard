@@ -95,22 +95,22 @@ try {
     & $gitExe commit -m ('update data ' + $dateStr)
     $commitOk = ($LASTEXITCODE -eq 0)
 
-    # 推送到远程（带重试：网络问题重试，冲突则自动 rebase）
-    function Push-Remote {
-        param($gitPath, $remote)
+    # 推送到 GitHub（带重试：网络问题重试，冲突则自动 rebase）
+    function Push-WithRetry {
+        param($gitPath)
         $maxTries = 3
         for ($i = 1; $i -le $maxTries; $i++) {
             if ($i -gt 1) {
-                Write-Host ('   Retry ' + $remote + ' ' + ($i) + '/' + $maxTries + ' after 5s...')
+                Write-Host ('   Retry ' + ($i) + '/' + $maxTries + ' after 5s...')
                 Start-Sleep -Seconds 5
             }
-            $output = & $gitPath push $remote main 2>&1
+            $output = & $gitPath push origin main 2>&1
             if ($LASTEXITCODE -eq 0) { return $true }
             # 如果远程有新提交导致冲突，先 rebase 再重试
             if ($output -match 'rejected') {
-                Write-Host ('   ' + $remote + ' has newer commits, pulling & rebasing...')
-                & $gitPath pull --rebase $remote main 2>&1 | Out-Null
-                $output = & $gitPath push $remote main 2>&1
+                Write-Host '   Remote has newer commits, pulling & rebasing...'
+                & $gitPath pull --rebase origin main 2>&1 | Out-Null
+                $output = & $gitPath push origin main 2>&1
                 if ($LASTEXITCODE -eq 0) { return $true }
             }
         }
@@ -118,21 +118,16 @@ try {
     }
 
     if ($commitOk) {
-        Write-Host '   [4/5] Push to GitHub...'
-        $pushGh = Push-Remote $gitExe 'origin'
-        Write-Host '   [5/5] Push to AtomGit...'
-        $pushAg = Push-Remote $gitExe 'atomgit'
+        Write-Host '   [4/4] Push to GitHub...'
+        $pushOk = Push-WithRetry $gitExe
         Pop-Location
 
-        if ($pushGh -or $pushAg) {
+        if ($pushOk) {
             Write-Host ''
             Write-Host '   ========================================'
-            Write-Host '   [SUCCESS] Pushed to GitHub + AtomGit!'
-            Write-Host '   GitHub  : https://zhongshanms.github.io/zhifa-dashboard/'
-            Write-Host '   AtomGit : https://zhongshanms.atomgit.net/zhifa-dashboard/'
+            Write-Host '   [SUCCESS] Pushed to GitHub!'
+            Write-Host '   https://zhongshanms.github.io/zhifa-dashboard/'
             Write-Host '   ========================================'
-            if (-not $pushGh) { Write-Host '   [WARN] GitHub push failed, but AtomGit OK' }
-            if (-not $pushAg) { Write-Host '   [WARN] AtomGit push failed, but GitHub OK' }
         } else {
             Write-Host ''
             Write-Host '   ========================================'
@@ -147,15 +142,13 @@ try {
         if ($LASTEXITCODE -eq 0 -and [int]$ahead -gt 0) {
             Write-Host '   [PUSH] ' + $ahead + ' pending commit(s), pushing...'
             Push-Location $deploy
-            $pushGh = Push-Remote $gitExe 'origin'
-            $pushAg = Push-Remote $gitExe 'atomgit'
+            $pushOk = Push-WithRetry $gitExe
             Pop-Location
-            if ($pushGh -or $pushAg) {
+            if ($pushOk) {
                 Write-Host ''
                 Write-Host '   ========================================'
                 Write-Host '   [SUCCESS] Pending commits pushed!'
-                Write-Host '   GitHub  : https://zhongshanms.github.io/zhifa-dashboard/'
-                Write-Host '   AtomGit : https://zhongshanms.atomgit.net/zhifa-dashboard/'
+                Write-Host '   https://zhongshanms.github.io/zhifa-dashboard/'
                 Write-Host '   ========================================'
             } else {
                 Write-Host ''

@@ -397,10 +397,9 @@ async function init() {
   // 1) 优先从 GitHub / CDN 拉取最新 data.json（带重试）
   var fetchUrls = [
     DATA_URL,                                                   // 主源：GitHub raw
-    'https://cdn.jsdelivr.net/gh/zhongshanms/zhifa-dashboard@main/data.json',  // 备用：jsDelivr CDN
-    'https://atomgit.com/zhongshanms/zhifa-dashboard/raw/branch/main/data.json'  // 备用：AtomGit（国内）
+    'https://cdn.jsdelivr.net/gh/zhongshanms/zhifa-dashboard@main/data.json'  // 备用：jsDelivr CDN
   ];
-  var sourceNames = ['GitHub','CDN','AtomGit'];
+  var sourceNames = ['GitHub','CDN'];
   var fetchOk = false;
   var maxRetries = 2;
 
