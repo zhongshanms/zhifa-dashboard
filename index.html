@@ -398,9 +398,9 @@ async function init() {
   var fetchUrls = [
     DATA_URL,                                                   // 主源：GitHub raw
     'https://cdn.jsdelivr.net/gh/zhongshanms/zhifa-dashboard@main/data.json',  // 备用：jsDelivr CDN
-    'https://zhifa-dashboard-uwsschnm.edgeone.cool/data.json'   // 备用：EdgeOne Pages（国内）
+    'https://atomgit.com/zhongshanms/zhifa-dashboard/raw/branch/main/data.json'  // 备用：AtomGit（国内）
   ];
-  var sourceNames = ['GitHub','CDN','EdgeOne'];
+  var sourceNames = ['GitHub','CDN','AtomGit'];
   var fetchOk = false;
   var maxRetries = 2;
 
