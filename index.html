@@ -626,17 +626,23 @@ function buildFilterOptions() {
   var baseForFactory = allData;
   if (selectedDate) baseForFactory = baseForFactory.filter(function(d) { return d['发货时间'] === selectedDate; });
   var factories = {}; baseForFactory.forEach(function(d) { factories[d['工厂代码']] = true; });
+  // 受限账号：确保其工厂始终在选项中，避免 sf.value 重置导致过滤失效
+  if (currentFactoryLimit) factories[currentFactoryLimit] = true;
   var sf = document.getElementById('filterFactory');
   var currFactory = sf.value;
   sf.innerHTML = '<option value="">全部</option>';
   Object.keys(factories).sort().forEach(function(f) {
     sf.appendChild(createOption(f, f));
   });
-  sf.value = currFactory;  // 恢复选中（如在选项中不存在则自动重置为"全部"）
+  sf.value = currFactory;  // 恢复选中（options中已确保受限工厂存在，不会丢失）
 
-  // 日期选项：只显示当前工厂下实际存在的日期
+  // 日期选项：受限账号只看其工厂的日期，普通账号看选中工厂的日期
   var baseForDate = allData;
-  if (selectedFactory) baseForDate = baseForDate.filter(function(d) { return d['工厂代码'] === selectedFactory; });
+  if (currentFactoryLimit) {
+    baseForDate = baseForDate.filter(function(d) { return d['工厂代码'] === currentFactoryLimit; });
+  } else if (selectedFactory) {
+    baseForDate = baseForDate.filter(function(d) { return d['工厂代码'] === selectedFactory; });
+  }
   var dates = {}; baseForDate.forEach(function(d) { dates[d['发货时间']] = true; });
 
   var sd = document.getElementById('filterDate');
