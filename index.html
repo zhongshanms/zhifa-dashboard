@@ -273,9 +273,17 @@ tr.row-new-product .status-badge{background:#fecaca;color:#991b1b;border:1px sol
 // ========== LOGIN ==========
 // 密码已使用 SHA-256 哈希存储
 var ACCOUNTS = {
-  'xuwei': '7a136091805ad2e13c2651ff2aadd6b6810932e8b6b1ee82416ed1015f15109b',
-  'chenxihua': '610d7e0b114ab418b5e7d92543496aa6a3d3026e249598f81e510f9f28390d92',
-  'chengjingguan': 'e487eb1c7223ebf8345b6c1f5218083584be1e4a843e0dbf717bfe1e6b449e6f'
+  'xuwei':         '7a136091805ad2e13c2651ff2aadd6b6810932e8b6b1ee82416ed1015f15109b',
+  'chenxihua':     '610d7e0b114ab418b5e7d92543496aa6a3d3026e249598f81e510f9f28390d92',
+  'chengjingguan': 'e487eb1c7223ebf8345b6c1f5218083584be1e4a843e0dbf717bfe1e6b449e6f',
+  'kaifante':      '8687ad2633e9509243afdae02e8861fa90e9bb0055802d7398f7d23d31cde47a',
+  'juyawujin':     'beeef2407862ace46543c096b2b5e14f2eec2a1c16c75d4311fdeca3b8ffe5ff'
+};
+
+// 工厂访问权限：null = 无限制；字符串 = 只能看该工厂
+var ACCOUNT_FACTORY_LIMIT = {
+  'kaifante':  'A',
+  'juyawujin': 'L'
 };
 
 async function sha256(message) {
@@ -288,14 +296,32 @@ async function sha256(message) {
 var LOGIN_KEY = 'wb_auth_v2';
 var LOGIN_TTL = 30 * 24 * 60 * 60 * 1000;  // 30 天，单位毫秒
 var currentUser = null;
+var currentFactoryLimit = null;  // 当前账号的工厂限制（null=无限制）
 
 function setUserBadge(user) {
   currentUser = user;
+  currentFactoryLimit = (user && ACCOUNT_FACTORY_LIMIT[user]) ? ACCOUNT_FACTORY_LIMIT[user] : null;
   var avatar = document.getElementById('userAvatar');
   var nameEl = document.getElementById('userName');
   if (user) {
     avatar.textContent = user.charAt(0).toUpperCase();
     nameEl.textContent = user;
+  }
+}
+
+// 应用工厂权限限制：有限制则锁定筛选器，无限制则解锁
+function applyFactoryRestriction() {
+  var sf = document.getElementById('filterFactory');
+  if (!sf) return;
+  if (currentFactoryLimit) {
+    sf.value = currentFactoryLimit;
+    sf.disabled = true;
+    sf.style.opacity = '0.7';
+    sf.style.cursor = 'not-allowed';
+  } else {
+    sf.disabled = false;
+    sf.style.opacity = '';
+    sf.style.cursor = '';
   }
 }
 
@@ -330,6 +356,8 @@ async function doLogin() {
     setUserBadge(user);
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('dashboardContent').classList.remove('hidden');
+    applyFactoryRestriction();
+    if (dataLoaded) applyFilters();
   } else {
     err.textContent = '账号或密码错误';
   }
@@ -338,6 +366,10 @@ async function doLogin() {
 function doLogout() {
   localStorage.removeItem(LOGIN_KEY);  // 主动退出清除持久化状态
   currentUser = null;
+  currentFactoryLimit = null;
+  // 解除工厂筛选器锁定
+  var sf = document.getElementById('filterFactory');
+  if (sf) { sf.disabled = false; sf.style.opacity = ''; sf.style.cursor = ''; }
   document.getElementById('userAvatar').textContent = '';
   document.getElementById('userName').textContent = '';
   document.getElementById('loginOverlay').classList.remove('hidden');
@@ -352,9 +384,12 @@ function doLogout() {
 (function() {
   var savedUser = loadLoginState();
   if (savedUser && ACCOUNTS[savedUser]) {
-    setUserBadge(savedUser);
+    setUserBadge(savedUser);  // 同步设置 currentFactoryLimit
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('dashboardContent').classList.remove('hidden');
+    // 工厂限制在 init() 完成后通过 applyFilters() 触发，此处仅预设锁定 UI
+    // 等 DOM 就绪后再执行，避免元素尚未渲染
+    document.addEventListener('DOMContentLoaded', function() { applyFactoryRestriction(); });
   }
 })();
 
@@ -462,6 +497,7 @@ async function init() {
   dataLoaded = true;
 
   buildFilterOptions();
+  applyFactoryRestriction();  // 数据就绪后锁定受限账号的工厂筛选器
   applyFilters();
   // 数据更新时间：优先用 data.json 里记录的真实一键更新时间，其次用 localStorage 缓存时间
   var displayTime = hasSaved ? savedTime : (dataUpdateTime || '--');
@@ -620,6 +656,10 @@ function createOption(value, text) {
 }
 
 function applyFilters() {
+  // 强制执行工厂权限：受限账号始终只显示其绑定工厂数据
+  if (currentFactoryLimit) {
+    document.getElementById('filterFactory').value = currentFactoryLimit;
+  }
   var factory = document.getElementById('filterFactory').value;
   var date = document.getElementById('filterDate').value;
   var plan = document.getElementById('filterPlan').value.trim();
