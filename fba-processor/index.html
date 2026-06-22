@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FBA工厂直发数据处理工具</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #f0f2f5;
+    color: #333;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+}
+.container { max-width: 880px; width: 100%; }
+
+/* Header */
+.header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+.header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 6px;
+}
+.header p {
+    font-size: 14px;
+    color: #666;
+}
+
+/* Card */
+.card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    padding: 24px 28px;
+    margin-bottom: 20px;
+    transition: box-shadow 0.2s;
+}
+.card-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.card-title .step-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: #4361ee;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+}
+.card-title .status-icon {
+    margin-left: auto;
+    font-size: 18px;
+}
+
+/* File upload */
+.upload-area {
+    border: 2px dashed #d0d5dd;
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+}
+.upload-area:hover, .upload-area.dragover {
+    border-color: #4361ee;
+    background: #f8f9ff;
+}
+.upload-area.has-file {
+    border-color: #52c41a;
+    background: #f6ffed;
+}
+.upload-area .icon { font-size: 36px; margin-bottom: 8px; }
+.upload-area .hint { font-size: 14px; color: #888; margin-top: 4px; }
+.upload-area input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+}
+.file-info {
+    display: none;
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: #f6ffed;
+    border: 1px solid #b7eb8f;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #389e0d;
+}
+.file-info.show { display: block; }
+.file-info .name { font-weight: 600; }
+.file-info .detail { color: #666; margin-left: 8px; }
+
+/* Sheet status */
+.sheet-status {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: #f9fafb;
+    border-radius: 6px;
+    font-size: 13px;
+}
+.sheet-status .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+}
+.sheet-status .label { color: #666; }
+.sheet-status .value { color: #333; font-weight: 500; }
+.sheet-status .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+.badge-success { background: #f6ffed; color: #389e0d; }
+.badge-pending { background: #fff7e6; color: #d46b08; }
+.badge-error { background: #fff2f0; color: #cf1322; }
+
+/* Column detection */
+.col-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 6px;
+    margin-top: 10px;
+}
+.col-tag {
+    background: #f0f5ff;
+    border: 1px solid #d6e4ff;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #1d39c4;
+    text-align: center;
+}
+.col-tag.keep {
+    background: #f6ffed;
+    border-color: #b7eb8f;
+    color: #389e0d;
+}
+.col-tag.del {
+    background: #fff2f0;
+    border-color: #ffccc7;
+    color: #cf1322;
+    text-decoration: line-through;
+}
+
+/* Action button */
+.action-area {
+    text-align: center;
+    padding: 16px 0;
+}
+.btn-process {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 48px;
+    font-size: 17px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    background: #4361ee;
+    color: #fff;
+    transition: all 0.2s;
+    box-shadow: 0 4px 14px rgba(67,97,238,0.3);
+}
+.btn-process:hover:not(:disabled) {
+    background: #3a56d4;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(67,97,238,0.4);
+}
+.btn-process:disabled {
+    background: #a0aec0;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+.btn-process .spinner {
+    display: none;
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+.btn-process.loading .spinner { display: inline-block; }
+.btn-process.loading .btn-text { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Log console */
+.log-console {
+    background: #1a1a2e;
+    border-radius: 8px;
+    padding: 16px 20px;
+    max-height: 280px;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    margin-top: 12px;
+}
+.log-console .line {
+    color: #a0aec0;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+.log-console .line.info { color: #63b3ed; }
+.log-console .line.success { color: #68d391; }
+.log-console .line.warn { color: #f6ad55; }
+.log-console .line.error { color: #fc8181; }
+.log-console .line.highlight { color: #d6bcfa; font-weight: 600; }
+
+/* Result section */
+.result-section {
+    display: none;
+    background: #f6ffed;
+    border: 1px solid #b7eb8f;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 12px;
+}
+.result-section.show { display: block; }
+.result-section h3 { font-size: 15px; color: #389e0d; margin-bottom: 8px; }
+.result-section .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+}
+.stat-item {
+    background: #fff;
+    border-radius: 6px;
+    padding: 8px 12px;
+    text-align: center;
+}
+.stat-item .num { font-size: 22px; font-weight: 700; color: #4361ee; }
+.stat-item .label { font-size: 12px; color: #888; }
+
+/* Responsive */
+@media (max-width: 640px) {
+    body { padding: 16px 12px; }
+    .card { padding: 16px; }
+    .header h1 { font-size: 20px; }
+    .btn-process { padding: 12px 32px; font-size: 15px; }
+    .col-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+    <h1>📦 FBA工厂直发数据处理</h1>
+    <p>上传ERP计划表和对接表，自动匹配发货时间并输出结果</p>
+</div>
+
+<!-- Step 1: Upload ERP -->
+<div class="card">
+    <div class="card-title">
+        <span class="step-badge">1</span>
+        上传ERP计划表
+        <span class="status-icon" id="erpStatusIcon">⏳</span>
+    </div>
+    <div class="upload-area" id="erpUploadArea">
+        <input type="file" id="erpFileInput" accept=".xlsx,.xls">
+        <div class="icon">📂</div>
+        <div><strong>点击或拖拽上传</strong></div>
+        <div class="hint">支持 .xlsx / .xls 格式（以"FBA工厂直发"开头的文件）</div>
+    </div>
+    <div class="file-info" id="erpFileInfo">
+        <span class="name" id="erpFileName">-</span>
+        <span class="detail" id="erpFileDetail">-</span>
+    </div>
+    <div class="sheet-status" id="erpSheetStatus" style="display:none;">
+        <div class="row"><span class="label">工作簿名称</span><span class="value" id="erpSheetName">-</span></div>
+        <div class="row"><span class="label">数据行数</span><span class="value" id="erpRowCount">-</span></div>
+        <div class="row"><span class="label">原始列数</span><span class="value" id="erpColCount">-</span></div>
+        <div class="row" style="flex-wrap:wrap; gap:4px; padding-top:6px;">
+            <span class="label">识别到的列：</span>
+            <span id="erpColTags"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Step 2: Upload 对接表 -->
+<div class="card">
+    <div class="card-title">
+        <span class="step-badge">2</span>
+        上传直发仓出货计划对接表
+        <span class="status-icon" id="dtStatusIcon">⏳</span>
+    </div>
+    <div class="upload-area" id="dtUploadArea">
+        <input type="file" id="dtFileInput" accept=".xlsx,.xls">
+        <div class="icon">📂</div>
+        <div><strong>点击或拖拽上传</strong></div>
+        <div class="hint">文件名为「直发仓出货计划对接表」</div>
+    </div>
+    <div class="file-info" id="dtFileInfo">
+        <span class="name" id="dtFileName">-</span>
+        <span class="detail" id="dtFileDetail">-</span>
+    </div>
+    <div class="sheet-status" id="dtSheetStatus" style="display:none;">
+        <div class="row"><span class="label">🔑 中山门锁直发</span><span class="value" id="dtZmStatus"><span class="badge badge-pending">待上传</span></span></div>
+        <div class="row"><span class="label">🔑 中山灯具直发</span><span class="value" id="dtZmDjStatus"><span class="badge badge-pending">待上传</span></span></div>
+        <div class="row"><span class="label">🔑 江门直发</span><span class="value" id="dtJmStatus"><span class="badge badge-pending">待上传</span></span></div>
+    </div>
+</div>
+
+<!-- Step 3: Process -->
+<div class="card">
+    <div class="card-title">
+        <span class="step-badge">3</span>
+        处理并输出
+        <span class="status-icon" id="processStatusIcon"></span>
+    </div>
+    <div class="action-area">
+        <button class="btn-process" id="btnProcess" disabled>
+            <span class="spinner"></span>
+            <span class="btn-text">🚀 开始处理并下载</span>
+        </button>
+    </div>
+    <div class="log-console" id="logConsole">
+        <div class="line">就绪 — 请先上传两份文件后点击按钮开始处理</div>
+    </div>
+    <div class="result-section" id="resultSection">
+        <h3>✅ 处理完成</h3>
+        <div class="stats" id="resultStats"></div>
+    </div>
+</div>
+
+<div style="text-align:center; color:#999; font-size:12px; margin-top:20px;">
+    所有数据处理均在浏览器本地完成，不会上传到任何服务器。
+</div>
+
+</div>
+
+<script>
+// ================================================================
+// 核心处理逻辑
+// ================================================================
+
+let erpWorkbook = null;
+let dtWorkbook = null;
+let erpFileName = '';
+let dtFileName = '';
+
+// 日志系统
+const logEl = document.getElementById('logConsole');
+function log(msg, type = 'info') {
+    const d = document.createElement('div');
+    d.className = `line ${type}`;
+    d.textContent = `> ${msg}`;
+    logEl.appendChild(d);
+    logEl.scrollTop = logEl.scrollHeight;
+}
+function clearLog() {
+    logEl.innerHTML = '';
+}
+
+// 工厂代码映射
+const LOCK_FACTORIES = new Set(['A','D','E','L','S']);
+const LIGHT_FACTORIES = new Set(['B','I','J']);
+const TURTLE_FACTORIES = new Set(['H']);
+
+function getFactoryGroup(code) {
+    if (LOCK_FACTORIES.has(code)) return 'lock';
+    if (LIGHT_FACTORIES.has(code)) return 'light';
+    if (TURTLE_FACTORIES.has(code)) return 'turtle';
+    return null;
+}
+
+// Excel序列号转日期
+function excelSerialToDate(serial) {
+    if (serial == null) return null;
+    if (serial instanceof Date) {
+        return serial.toISOString().split('T')[0];
+    }
+    if (typeof serial === 'number' && serial > 40000 && serial < 100000) {
+        // Excel serial: days since 1899-12-30
+        const d = new Date(Date.UTC(1899, 11, 30 + serial));
+        return d.toISOString().split('T')[0];
+    }
+    if (typeof serial === 'string') {
+        const trimmed = serial.trim();
+        // Try to parse as date string
+        if (/^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(trimmed)) {
+            const d = new Date(trimmed);
+            if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        }
+        // Try to parse number string
+        const n = Number(trimmed);
+        if (!isNaN(n) && n > 40000 && n < 100000) {
+            const d = new Date(Date.UTC(1899, 11, 30 + Math.floor(n)));
+            return d.toISOString().split('T')[0];
+        }
+        return trimmed;
+    }
+    if (typeof serial === 'number' && serial > 0) {
+        return String(serial);
+    }
+    return null;
+}
+
+// 从对接表构建查询字典
+function buildLookupTable(data, dataStartIdx, fbaCol, dateCol, fallbackCol, factoryCol) {
+    const lookup = new Map();
+    for (let i = dataStartIdx; i < data.length; i++) {
+        const row = data[i];
+        if (!row || !row[fbaCol]) continue;
+        const fbaKey = String(row[fbaCol]).trim();
+        if (!fbaKey) continue;
+
+        // 优先取提货日期
+        let dateVal = row[dateCol];
+        let dateStr = excelSerialToDate(dateVal);
+
+        // 提货日期为空则用备选
+        if (!dateStr && fallbackCol !== undefined && fallbackCol !== null) {
+            dateStr = excelSerialToDate(row[fallbackCol]);
+        }
+
+        let factory = null;
+        if (factoryCol !== undefined && factoryCol !== null && row[factoryCol] != null) {
+            factory = String(row[factoryCol]).trim();
+        }
+
+        // 如果字典中已有更早的记录则不覆盖（通常FBA单号唯一）
+        if (!lookup.has(fbaKey)) {
+            lookup.set(fbaKey, { date: dateStr, factory: factory });
+        }
+    }
+    return lookup;
+}
+
+// 获取ERP数据数组（含表头）
+function getErpData(ws) {
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, cellDates: true, raw: true });
+    // 过滤掉完全空的行
+    return data.filter(row => row && row.some(c => c != null && c !== ''));
+}
+
+// 获取对接表sheet数据
+function getDtSheetData(ws) {
+    return XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, cellDates: true, raw: true });
+}
+
+// 模糊匹配列名
+function findColumnIndex(headers, keywords) {
+    if (!headers || headers.length === 0) return -1;
+    // 先精确匹配
+    for (let i = 0; i < headers.length; i++) {
+        const h = headers[i];
+        if (h == null) continue;
+        const hs = String(h).trim();
+        for (const kw of keywords) {
+            if (hs === kw) return i;
+        }
+    }
+    // 再包含匹配
+    for (let i = 0; i < headers.length; i++) {
+        const h = headers[i];
+        if (h == null) continue;
+        const hs = String(h).trim();
+        for (const kw of keywords) {
+            if (hs.includes(kw) || kw.includes(hs)) return i;
+        }
+    }
+    return -1;
+}
+
+// ================================================================
+// 主处理函数
+// ================================================================
+function processFiles() {
+    if (!erpWorkbook || !dtWorkbook) {
+        log('请先上传两份文件！', 'error');
+        return;
+    }
+
+    clearLog();
+    document.getElementById('btnProcess').classList.add('loading');
+    document.getElementById('btnProcess').disabled = true;
+    document.getElementById('resultSection').classList.remove('show');
+    document.getElementById('processStatusIcon').textContent = '⏳';
+
+    try {
+        // ---- Step 1: 读取ERP数据 ----
+        log('读取ERP计划表...', 'info');
+        const erpData = getErpData(erpWorkbook.Sheets[erpWorkbook.SheetNames[0]]);
+        if (erpData.length < 2) {
+            log('ERP文件数据不足（至少需要表头+1行数据）', 'error');
+            finishProcess(false);
+            return;
+        }
+
+        const erpHeaders = erpData[0];
+        log(`ERP表头: ${erpHeaders.filter(h => h != null).join(' | ')}`, 'info');
+
+        // 自动识别关键列
+        const planNoCol = findColumnIndex(erpHeaders, ['计划编号', 'FBA单号']);
+        const factoryCodeCol = findColumnIndex(erpHeaders, ['工厂代码']);
+        const mainSkuCol = findColumnIndex(erpHeaders, ['主sku', 'SKU']);
+        const planNameCol = findColumnIndex(erpHeaders, ['计划名称']);
+        const boxSeqCol = findColumnIndex(erpHeaders, ['箱序']);
+        const totalQtyCol = findColumnIndex(erpHeaders, ['总只数']);
+
+        log(`识别到：计划编号→列${planNoCol+1}(A=${String.fromCharCode(65+(planNoCol%26))}), 工厂代码→列${factoryCodeCol+1}`, 'info');
+
+        if (planNoCol < 0 || factoryCodeCol < 0) {
+            log('未识别到"计划编号"或"工厂代码"列，请检查ERP文件格式', 'error');
+            finishProcess(false);
+            return;
+        }
+
+        // ---- Step 2: 找出需要删除的列 ----
+        log('分析需要删除的空/零列...', 'info');
+        const deleteCols = new Set();
+        for (let c = 0; c < erpHeaders.length; c++) {
+            let allEmpty = true;
+            let allZero = true;
+            for (let r = 1; r < erpData.length; r++) {
+                const v = erpData[r][c];
+                if (v != null && v !== '') {
+                    allEmpty = false;
+                    const sv = String(v).trim();
+                    if (sv !== '0' && sv !== '0.0' && sv !== '0.00') {
+                        allZero = false;
+                    }
+                }
+            }
+            if (allEmpty || allZero) {
+                deleteCols.add(c);
+            }
+        }
+        log(`将删除 ${deleteCols.size} 个空/零列`, 'info');
+
+        // 被删除的列名显示
+        const delNames = [];
+        deleteCols.forEach(c => {
+            if (erpHeaders[c]) delNames.push(erpHeaders[c]);
+        });
+        if (delNames.length > 0) {
+            log(`删除列: ${delNames.join('、')}`, 'warn');
+        }
+
+        // ---- Step 3: 读取对接表 ----
+        log('读取直发仓出货计划对接表...', 'info');
+
+        // 3a. 中山门锁直发 (删前2行)
+        const zmSheet = dtWorkbook.Sheets['中山门锁直发'];
+        if (!zmSheet) { log('对接表中未找到"中山门锁直发"sheet', 'error'); finishProcess(false); return; }
+        let zmData = getDtSheetData(zmSheet);
+        if (zmData.length < 3) { log('中山门锁直发数据不足', 'error'); finishProcess(false); return; }
+        // Row 0,1 = merged headers, Row 2 = real headers, Data from index 3
+        const zmHeaders = zmData[2]; // Row 3 (0-indexed: 2)
+        const zmFbaCol = findColumnIndex(zmHeaders, ['FBA单号']);
+        const zmDateCol = findColumnIndex(zmHeaders, ['提货日期']);
+        const zmFallbackCol = findColumnIndex(zmHeaders, ['计划规定出货日期', '预计货好日期']);
+        const zmFactoryCol = findColumnIndex(zmHeaders, ['供应商代码', '工厂代码']);
+
+        if (zmFbaCol < 0) { log('中山门锁直发未找到FBA单号列', 'error'); finishProcess(false); return; }
+        log(`中山门锁直发: FBA单号列=${zmFbaCol+1}, 提货日期列=${zmDateCol+1}, 备选列=${zmFallbackCol+1}`, 'info');
+
+        const lookupZm = buildLookupTable(zmData, 3, zmFbaCol, zmDateCol, zmFallbackCol, zmFactoryCol);
+        log(`中山门锁直发: 构建 ${lookupZm.size} 条匹配记录`, 'info');
+
+        // 3b. 中山灯具直发 (删前1行)
+        const zmDjSheet = dtWorkbook.Sheets['中山灯具直发'];
+        if (!zmDjSheet) { log('对接表中未找到"中山灯具直发"sheet', 'error'); finishProcess(false); return; }
+        let zmDjData = getDtSheetData(zmDjSheet);
+        if (zmDjData.length < 2) { log('中山灯具直发数据不足', 'error'); finishProcess(false); return; }
+        const zmDjHeaders = zmDjData[1];
+        const zmDjFbaCol = findColumnIndex(zmDjHeaders, ['FBA单号']);
+        const zmDjDateCol = findColumnIndex(zmDjHeaders, ['提货日期']);
+        const zmDjFallbackCol = findColumnIndex(zmDjHeaders, ['工厂预计出货日期']);
+        const zmDjFactoryCol = findColumnIndex(zmDjHeaders, ['仓库简称']);
+
+        if (zmDjFbaCol < 0) { log('中山灯具直发未找到FBA单号列', 'error'); finishProcess(false); return; }
+        const lookupZmDj = buildLookupTable(zmDjData, 2, zmDjFbaCol, zmDjDateCol, zmDjFallbackCol, zmDjFactoryCol);
+        log(`中山灯具直发: 构建 ${lookupZmDj.size} 条匹配记录`, 'info');
+
+        // 3c. 江门直发 (删前1行)
+        const jmSheet = dtWorkbook.Sheets['江门直发'];
+        if (!jmSheet) { log('对接表中未找到"江门直发"sheet', 'error'); finishProcess(false); return; }
+        let jmData = getDtSheetData(jmSheet);
+        if (jmData.length < 2) { log('江门直发数据不足', 'error'); finishProcess(false); return; }
+        const jmHeaders = jmData[1];
+        const jmFbaCol = findColumnIndex(jmHeaders, ['FBA单号']);
+        const jmDateCol = findColumnIndex(jmHeaders, ['提货日期']);
+        const jmFallbackCol = findColumnIndex(jmHeaders, ['工厂预计出货日期']);
+        const jmFactoryCol = findColumnIndex(jmHeaders, ['仓库简称']);
+
+        if (jmFbaCol < 0) { log('江门直发未找到FBA单号列', 'error'); finishProcess(false); return; }
+        const lookupJm = buildLookupTable(jmData, 2, jmFbaCol, jmDateCol, jmFallbackCol, jmFactoryCol);
+        log(`江门直发: 构建 ${lookupJm.size} 条匹配记录`, 'info');
+
+        // ---- Step 4: 构建新数据表 ----
+        log('构建新数据表...', 'info');
+
+        // 新表列映射：原列号 → 新列号
+        const colMap = new Map();
+        let newColIdx = 0;
+        for (let c = 0; c < erpHeaders.length; c++) {
+            if (!deleteCols.has(c)) {
+                colMap.set(c, newColIdx++);
+            }
+        }
+        const shipDateColIdx = newColIdx; // 发货时间在最末列
+        const totalNewCols = newColIdx + 1;
+
+        // 准备新数据
+        const newData = [];
+
+        // 表头行
+        const headerRow = new Array(totalNewCols).fill(null);
+        for (const [oldC, newC] of colMap) {
+            headerRow[newC] = erpHeaders[oldC];
+        }
+        headerRow[shipDateColIdx] = '发货时间';
+        newData.push(headerRow);
+
+        // 数据行
+        let matchCount = 0;
+        let missCount = 0;
+
+        for (let r = 1; r < erpData.length; r++) {
+            const row = erpData[r];
+            const newRow = new Array(totalNewCols).fill(null);
+
+            // 复制保留列
+            for (const [oldC, newC] of colMap) {
+                newRow[newC] = row[oldC] !== undefined ? row[oldC] : null;
+            }
+
+            // 匹配发货时间
+            const factoryCode = row[factoryCodeCol];
+            const planNo = row[planNoCol];
+
+            if (factoryCode != null && planNo != null) {
+                const fc = String(factoryCode).trim();
+                const pn = String(planNo).trim();
+                const group = getFactoryGroup(fc);
+
+                let shipDate = null;
+                if (group === 'lock') {
+                    const entry = lookupZm.get(pn);
+                    shipDate = entry ? entry.date : null;
+                } else if (group === 'light') {
+                    const entry = lookupZmDj.get(pn);
+                    shipDate = entry ? entry.date : null;
+                } else if (group === 'turtle') {
+                    const entry = lookupJm.get(pn);
+                    shipDate = entry ? entry.date : null;
+                } else {
+                    // 未知工厂代码，尝试在所有表中查找
+                    let entry = lookupZm.get(pn);
+                    if (!entry) entry = lookupZmDj.get(pn);
+                    if (!entry) entry = lookupJm.get(pn);
+                    shipDate = entry ? entry.date : null;
+                }
+
+                if (shipDate) {
+                    newRow[shipDateColIdx] = shipDate;
+                    matchCount++;
+                } else {
+                    missCount++;
+                }
+            } else {
+                missCount++;
+            }
+
+            newData.push(newRow);
+        }
+
+        log(`匹配完成！成功: ${matchCount}行, 未匹配: ${missCount}行`, matchCount > 0 ? 'success' : 'warn');
+        if (missCount > 0) {
+            log(`有 ${missCount} 行未找到匹配的发货时间，这些行发货时间列为空`, 'warn');
+        }
+
+        // ---- Step 5: 输出文件 ----
+        log('生成输出文件...', 'info');
+
+        // 创建新的workbook
+        const wbOut = XLSX.utils.book_new();
+        const wsOut = XLSX.utils.aoa_to_sheet(newData);
+
+        // 设置列宽
+        const colWidths = [];
+        for (let c = 0; c < totalNewCols; c++) {
+            let maxLen = 0;
+            for (let r = 0; r < newData.length; r++) {
+                const v = newData[r][c];
+                if (v != null) {
+                    const len = String(v).length;
+                    // 中文字符占2个宽度
+                    let displayLen = 0;
+                    for (const ch of String(v)) {
+                        displayLen += ch.charCodeAt(0) > 127 ? 2 : 1;
+                    }
+                    if (displayLen > maxLen) maxLen = displayLen;
+                }
+            }
+            colWidths.push({ wch: Math.max(maxLen + 2, 10) });
+        }
+        wsOut['!cols'] = colWidths;
+
+        XLSX.utils.book_append_sheet(wbOut, wsOut, 'FBA工厂直发');
+        log('正在生成下载...', 'info');
+
+        // 生成文件名
+        const randNum = String(Math.floor(1000 + Math.random() * 9000));
+        const outFileName = `直发任务数据${randNum}.xlsx`;
+
+        // 触发下载
+        const wbout = XLSX.write(wbOut, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = outFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        log(`✅ 文件已下载: ${outFileName}`, 'success');
+
+        // 显示结果统计
+        const statsHtml = `
+            <div class="stat-item"><div class="num">${erpData.length - 1}</div><div class="label">ERP数据行数</div></div>
+            <div class="stat-item"><div class="num">${deleteCols.size}</div><div class="label">删除空/零列</div></div>
+            <div class="stat-item"><div class="num">${totalNewCols - 1}</div><div class="label">保留列数</div></div>
+            <div class="stat-item"><div class="num">${matchCount}</div><div class="label">匹配成功</div></div>
+            <div class="stat-item"><div class="num">${randNum}</div><div class="label">文件编号</div></div>
+            <div class="stat-item"><div class="num">${outFileName}</div><div class="label">输出文件名</div></div>
+        `;
+        document.getElementById('resultStats').innerHTML = statsHtml;
+        document.getElementById('resultSection').classList.add('show');
+        document.getElementById('processStatusIcon').textContent = '✅';
+
+        finishProcess(true);
+
+    } catch (err) {
+        log(`处理出错: ${err.message}`, 'error');
+        console.error(err);
+        finishProcess(false);
+    }
+}
+
+function finishProcess(success) {
+    const btn = document.getElementById('btnProcess');
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    if (!success) {
+        document.getElementById('processStatusIcon').textContent = '❌';
+    }
+}
+
+// ================================================================
+// UI事件绑定
+// ================================================================
+
+// ERP文件上传
+document.getElementById('erpFileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    loadErpFile(file);
+});
+
+document.getElementById('erpUploadArea').addEventListener('dragover', function(e) {
+    e.preventDefault();
+    this.classList.add('dragover');
+});
+document.getElementById('erpUploadArea').addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+});
+document.getElementById('erpUploadArea').addEventListener('drop', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) loadErpFile(files[0]);
+});
+
+function loadErpFile(file) {
+    erpFileName = file.name;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            erpWorkbook = XLSX.read(data, { type: 'array', cellDates: true, raw: true });
+            const ws = erpWorkbook.Sheets[erpWorkbook.SheetNames[0]];
+            const rawData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+            document.getElementById('erpFileInfo').classList.add('show');
+            document.getElementById('erpFileName').textContent = file.name;
+            document.getElementById('erpFileDetail').textContent = `(${(file.size / 1024).toFixed(1)} KB)`;
+            document.getElementById('erpUploadArea').classList.add('has-file');
+            document.getElementById('erpStatusIcon').textContent = '✅';
+
+            // 显示sheet信息
+            const sheetName = erpWorkbook.SheetNames[0];
+            const validRows = rawData.filter(r => r && r.some(c => c != null && c !== '')).length;
+            const colCount = rawData.length > 0 ? rawData[0].length : 0;
+            document.getElementById('erpSheetName').textContent = sheetName;
+            document.getElementById('erpRowCount').textContent = `${validRows - 1} 行数据`;
+            document.getElementById('erpColCount').textContent = `${colCount} 列`;
+
+            // 显示列标签
+            const headers = rawData[0] || [];
+            let colTagsHtml = '';
+            const delSet = new Set();
+            for (let c = 0; c < headers.length; c++) {
+                if (!headers[c]) continue;
+                // 快速判断是否为空/零列
+                let allEmpty = true, allZero = true;
+                for (let r = 1; r < Math.min(rawData.length, 10); r++) {
+                    const v = rawData[r] && rawData[r][c];
+                    if (v != null && v !== '') {
+                        allEmpty = false;
+                        const sv = String(v).trim();
+                        if (sv !== '0' && sv !== '0.0' && sv !== '0.00') allZero = false;
+                    }
+                }
+                const cls = (!allEmpty && !allZero) ? 'keep' : 'del';
+                colTagsHtml += `<span class="col-tag ${cls}">${headers[c]}</span>`;
+                if (cls === 'del') delSet.add(c);
+            }
+            document.getElementById('erpColTags').innerHTML = colTagsHtml;
+            document.getElementById('erpSheetStatus').style.display = 'block';
+
+            log(`已加载ERP文件: ${file.name}（${validRows-1}行 × ${colCount}列）`, 'success');
+            checkReady();
+
+        } catch(err) {
+            log(`加载ERP文件失败: ${err.message}`, 'error');
+            document.getElementById('erpStatusIcon').textContent = '❌';
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// 对接表文件上传
+document.getElementById('dtFileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    loadDtFile(file);
+});
+
+document.getElementById('dtUploadArea').addEventListener('dragover', function(e) {
+    e.preventDefault();
+    this.classList.add('dragover');
+});
+document.getElementById('dtUploadArea').addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+});
+document.getElementById('dtUploadArea').addEventListener('drop', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) loadDtFile(files[0]);
+});
+
+function loadDtFile(file) {
+    dtFileName = file.name;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            dtWorkbook = XLSX.read(data, { type: 'array', cellDates: true, raw: true });
+
+            document.getElementById('dtFileInfo').classList.add('show');
+            document.getElementById('dtFileName').textContent = file.name;
+            document.getElementById('dtFileDetail').textContent = `(${(file.size / 1024).toFixed(1)} KB)`;
+            document.getElementById('dtUploadArea').classList.add('has-file');
+            document.getElementById('dtStatusIcon').textContent = '✅';
+
+            // 检查三个关键sheet
+            const sheetNames = dtWorkbook.SheetNames;
+            const hasZm = sheetNames.includes('中山门锁直发');
+            const hasZmDj = sheetNames.includes('中山灯具直发');
+            const hasJm = sheetNames.includes('江门直发');
+
+            const zmEl = document.getElementById('dtZmStatus');
+            const zmDjEl = document.getElementById('dtZmDjStatus');
+            const jmEl = document.getElementById('dtJmStatus');
+
+            zmEl.innerHTML = hasZm ? '<span class="badge badge-success">✅ 已识别</span>' : '<span class="badge badge-error">❌ 未找到</span>';
+            zmDjEl.innerHTML = hasZmDj ? '<span class="badge badge-success">✅ 已识别</span>' : '<span class="badge badge-error">❌ 未找到</span>';
+            jmEl.innerHTML = hasJm ? '<span class="badge badge-success">✅ 已识别</span>' : '<span class="badge badge-error">❌ 未找到</span>';
+
+            document.getElementById('dtSheetStatus').style.display = 'block';
+
+            const foundSheets = [hasZm, hasZmDj, hasJm].filter(Boolean).length;
+            log(`已加载对接表: ${file.name}（找到 ${foundSheets}/3 个目标sheet）`, 'success');
+            if (foundSheets < 3) {
+                log(`注意：缺少 ${3-foundSheets} 个目标sheet`, 'warn');
+            }
+
+            checkReady();
+
+        } catch(err) {
+            log(`加载对接表失败: ${err.message}`, 'error');
+            document.getElementById('dtStatusIcon').textContent = '❌';
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function checkReady() {
+    const btn = document.getElementById('btnProcess');
+    if (erpWorkbook && dtWorkbook) {
+        btn.disabled = false;
+        document.getElementById('processStatusIcon').textContent = '✅ 就绪';
+        log('两份文件均已加载，点击按钮开始处理', 'success');
+    } else {
+        btn.disabled = true;
+    }
+}
+
+// 绑定处理按钮
+document.getElementById('btnProcess').addEventListener('click', processFiles);
+</script>
+</body>
+</html>
