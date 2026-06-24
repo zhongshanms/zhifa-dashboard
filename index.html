@@ -496,8 +496,8 @@ async function init() {
   showLoading(false);
   dataLoaded = true;
 
-  buildFilterOptions();
-  applyFactoryRestriction();  // 数据就绪后锁定受限账号的工厂筛选器
+  applyFactoryRestriction();  // 先锁定受限账号的工厂筛选器
+  buildFilterOptions();      // 再构建下拉选项（此时 DOM 已锁定，date 过滤必然正确）
   applyFilters();
   // 数据更新时间：优先用 data.json 里记录的真实一键更新时间，其次用 localStorage 缓存时间
   var displayTime = hasSaved ? savedTime : (dataUpdateTime || '--');
@@ -638,10 +638,9 @@ function buildFilterOptions() {
 
   // 日期选项：受限账号只看其工厂的日期，普通账号看选中工厂的日期
   var baseForDate = allData;
-  if (currentFactoryLimit) {
-    baseForDate = baseForDate.filter(function(d) { return d['工厂代码'] === currentFactoryLimit; });
-  } else if (selectedFactory) {
-    baseForDate = baseForDate.filter(function(d) { return d['工厂代码'] === selectedFactory; });
+  var effectiveFactory = currentFactoryLimit || selectedFactory;
+  if (effectiveFactory) {
+    baseForDate = baseForDate.filter(function(d) { return d['工厂代码'] === effectiveFactory; });
   }
   var dates = {}; baseForDate.forEach(function(d) { dates[d['发货时间']] = true; });
 
