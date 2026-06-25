@@ -357,7 +357,7 @@ async function doLogin() {
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('dashboardContent').classList.remove('hidden');
     applyFactoryRestriction();
-    if (dataLoaded) applyFilters();
+    if (dataLoaded) { buildFilterOptions(); applyFilters(); }
   } else {
     err.textContent = '账号或密码错误';
   }
