@@ -95,7 +95,7 @@ try {
     & $gitExe commit -m ('update data ' + $dateStr)
     $commitOk = ($LASTEXITCODE -eq 0)
 
-    # 推送到 GitHub（带重试：网络问题重试，冲突则自动 rebase）
+    # 推送到 GitHub（带重试：网络问题重试，冲突则自动 rebase+解决冲突）
     function Push-WithRetry {
         param($gitPath)
         $maxTries = 3
@@ -110,6 +110,23 @@ try {
             if ($output -match 'rejected') {
                 Write-Host '   Remote has newer commits, pulling & rebasing...'
                 & $gitPath pull --rebase origin main 2>&1 | Out-Null
+                # 检查 rebase 是否因冲突卡住（data.json 被两边同时修改）
+                $rebaseDir = Join-Path $deploy '.git/rebase-merge'
+                $rebaseApply = Join-Path $deploy '.git/rebase-apply'
+                if ((Test-Path $rebaseDir) -or (Test-Path $rebaseApply)) {
+                    Write-Host '   Rebase conflict detected, auto-resolving...'
+                    # data.json 每次重新生成，直接取本次脚本产出的版本
+                    & $gitPath checkout --theirs data.json 2>&1 | Out-Null
+                    & $gitPath add data.json 2>&1 | Out-Null
+                    $env:GIT_EDITOR = 'true'
+                    $rbOutput = & $gitPath rebase --continue 2>&1
+                    $env:GIT_EDITOR = $null
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-Host '   Rebase failed, aborting to restore clean state...'
+                        & $gitPath rebase --abort 2>&1 | Out-Null
+                        return $false
+                    }
+                }
                 $output = & $gitPath push origin main 2>&1
                 if ($LASTEXITCODE -eq 0) { return $true }
             }
