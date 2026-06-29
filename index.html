@@ -25,6 +25,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",s
 .logout-btn:hover{background:rgba(239,68,68,0.3)}
 #uploadInput{display:none}
 .last-update{font-size:12px;opacity:.7}
+.inspection-rate{font-size:13px;color:#86efac;margin-top:2px;display:inline-block}
 
 /* Stats */
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
@@ -185,7 +186,7 @@ tr.row-new-product .status-badge{background:#fecaca;color:#991b1b;border:1px sol
 <div class="container">
   <div class="header">
     <div>
-      <h1>直发质检任务看板</h1>
+      <h1>直发质检任务看板 <span class="inspection-rate" id="inspectionRate" style="display:none"></span></h1>
       <div class="last-update" id="lastUpdate">数据更新时间: --</div>
     </div>
     <div class="header-right">
@@ -502,6 +503,18 @@ async function init() {
   // 数据更新时间：优先用 data.json 里记录的真实一键更新时间，其次用 localStorage 缓存时间
   var displayTime = hasSaved ? savedTime : (dataUpdateTime || '--');
   document.getElementById('lastUpdate').textContent = '数据更新时间: ' + displayTime + ' | 数据源: ' + sourceLabel + ' | 总记录: ' + allData.length + ' | 工厂: ' + Object.keys(allData.reduce(function(m,d){m[d['工厂代码']]=1;return m;},{})).sort().join(',');
+
+  // 从第一条记录的 key 中提取质检率（表格列头格式："质检率3.24%"）
+  if (allData.length > 0) {
+    var rateKeys = Object.keys(allData[0]).filter(function(k) { return /^质检率/.test(k); });
+    if (rateKeys.length > 0) {
+      var m = rateKeys[0].match(/质检率\s*(\d+\.?\d*%)/);
+      if (m) {
+        document.getElementById('inspectionRate').textContent = '质检率 ' + m[1];
+        document.getElementById('inspectionRate').style.display = '';
+      }
+    }
+  }
 
   // combobox events
   setupCombobox('filterPlan', 'dropdownPlan');
