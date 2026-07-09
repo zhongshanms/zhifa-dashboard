@@ -406,9 +406,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ========== EMBEDDED DATA ==========
 // ══════════════════════════════════════
-//  📡 数据源配置 — 修改此行指向你的 GitHub 仓库
+//  📡 数据源配置 — 同源路径，走 EdgeOne CDN 国内节点
 // ══════════════════════════════════════
-var DATA_URL = 'https://raw.githubusercontent.com/zhongshanms/zhifa-dashboard/main/data.json';
+var DATA_URL = 'data.json';
 // 缓存时间戳，用于跳过缓存
 var DATA_CACHE_BUSTER = '';
 
@@ -432,12 +432,11 @@ async function init() {
   var savedTime = '';
   var dataUpdateTime = '';  // 真实数据更新时间（来自 data.json 内 meta._updateTime）
 
-  // 1) 优先从 GitHub / CDN 拉取最新 data.json（带重试）
+  // 1) 优先从同源路径拉取 data.json（EdgeOne CDN 国内节点）
   var fetchUrls = [
-    DATA_URL,                                                   // 主源：GitHub raw
-    'https://cdn.jsdelivr.net/gh/zhongshanms/zhifa-dashboard@main/data.json'  // 备用：jsDelivr CDN
+    DATA_URL  // 同源路径：当前域名 / EdgeOne CDN
   ];
-  var sourceNames = ['GitHub','CDN'];
+  var sourceNames = ['EdgeOne CDN'];
   var fetchOk = false;
   var maxRetries = 2;
 
