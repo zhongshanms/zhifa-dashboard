@@ -1,0 +1,22 @@
+name: Deploy to BT Server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  sync-bt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to BT Server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.BT_SSH_HOST }}
+          port: ${{ secrets.BT_SSH_PORT }}
+          username: ${{ secrets.BT_SSH_USER }}
+          key: ${{ secrets.BT_SSH_KEY }}
+          script: |
+            cd /www/wwwroot/dashboard.zhongshanzhiliang.top
+            git fetch origin main
+            git reset --hard FETCH_HEAD
