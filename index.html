@@ -751,7 +751,7 @@ function renderTable() {
   tbody.innerHTML = page.map(function(d) {
     var statusBadge = (d['质检状态'] || '').trim();
     var statusClass = statusBadge === '进行中' ? 'status-progress' : 'status-notstart';
-    var isNewProduct = ((d['是否新品'] || '').trim() === '是');
+    var isNewProduct = ((d['是否新品'] || '').indexOf('新品') !== -1);
     var rowClass = isNewProduct ? ' class="row-new-product"' : '';
     return '<tr' + rowClass + '>' +
       '<td>' + esc(d['主sku']) + '</td>' +
